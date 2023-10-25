@@ -1,0 +1,22 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var S2 = ee.ImageCollection("COPERNICUS/S2_SR"),
+    geometry = /* color: #d63000 */ee.Geometry.Point([91.67665935969303, 26.17620612716632]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+var S21=S2.filterBounds(geometry).filterDate('2021-03-01','2021-06-01').filterMetadata('CLOUDY_PIXEL_PERCENTAGE','less_than',7);//.select(ee.List.sequence(0,12));
+function maskS2clouds(image) {
+  var qa = image.select('QA60');
+
+  // Bits 10 and 11 are clouds and cirrus, respectively.
+  var cloudBitMask = 1 << 10;
+  var cirrusBitMask = 1 << 11;
+
+  // Both flags should be set to zero, indicating clear conditions.
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
+      .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+
+  return image.updateMask(mask);
+  }
+  S21 = S21.map(maskS2clouds);
+  S21= S21.select(ee.List.sequence(0,12));
+print(S21);
+Map.addLayer(S21.first())

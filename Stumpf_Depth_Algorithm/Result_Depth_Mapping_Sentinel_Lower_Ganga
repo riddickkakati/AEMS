@@ -1,0 +1,203 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var S2 = ee.ImageCollection("COPERNICUS/S2"),
+    Ganeshpahar = /* color: #98ff00 */ee.Geometry.Point([82.7438, 25.149]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+/*var waypoints = [
+    ee.Feature(
+        ee.Geometry.Point([78.44611111, 30.72833333]),
+        {'name': '1: Uttarkashi'}),
+    ee.Feature(
+        ee.Geometry.Point([78.59694444, 30.14138889]), {'name': '1: Deoprayag'}),
+    ee.Feature(
+        ee.Geometry.Point([78.30388889, 30.10083333]),
+        {'name': '3: Rishikesh'}),
+    ee.Feature(
+        ee.Geometry.Point([78.14166667, 28.76666667]), {'name': '2: Garhmukteshwar'}),
+    ee.Feature(
+        ee.Geometry.Point([78.86055556, 27.93194444]), {'name': '3: Kachlabridge'}),
+    ee.Feature(
+        ee.Geometry.Point([79.62500000, 27.40416667]), {'name': '4: Fatehgarh'}),
+    ee.Feature(
+        ee.Geometry.Point([80.03611111, 26.93472222]), {'name': '5: Ankinghat'}),
+    ee.Feature(
+        ee.Geometry.Point([80.37638889, 26.46944444]), {'name': '6: Kanpur'}),
+    ee.Feature(
+        ee.Geometry.Point([80.85416667, 26.04305556]), {'name': '7: Bhitaura'}),
+    ee.Feature(
+        ee.Geometry.Point([81.91638889, 25.39305556]), {'name': '8: Chhatnag Allahabad'}),
+    ee.Feature(
+        ee.Geometry.Point([82.53027778, 25.15611111]), {'name': '9: Mirzapur'}),
+    ee.Feature(
+        ee.Geometry.Point([83.03750000, 25.32361111]), {'name': '10: Varanasi'}),
+    ee.Feature(
+        ee.Geometry.Point([87.93111111, 24.80388889]), {'name': '11: Farakka'})
+  ];
+  */
+  
+var waypoints = [
+    ee.Feature(
+        ee.Geometry.Point([82.5472239713342,25.155617214567048]),
+        {'name': '1: Majhgawan'}),
+    ee.Feature(
+        ee.Geometry.Point([82.57477562233518,25.15693794105981]), {'name': '2: Digur Patti'}),
+    ee.Feature(
+        ee.Geometry.Point([82.59418626162268,25.177841634896115]),
+        {'name': '3: Jiutia Patti'}),
+    ee.Feature(
+        ee.Geometry.Point([82.57828044538665,25.192608310967888]), {'name': '4: Dev Parwa'}),
+    ee.Feature(
+        ee.Geometry.Point([82.56437587385345,25.21823560583664]), {'name': '5: Mujehara Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([82.58686351423431,25.22693212786083]), {'name': '6: Bhogaon'}),
+    ee.Feature(
+        ee.Geometry.Point([82.60986613874603,25.230193163307217]), {'name': '7: Gaharwari'}),
+    ee.Feature(
+        ee.Geometry.Point([82.63767528181243,25.223515711219065]), {'name': '8: Kolahalpur Tari'}),
+    ee.Feature(
+        ee.Geometry.Point([82.65896129255462,25.210470328676827]), {'name': '9: Chapaurkalan'}),
+    ee.Feature(
+        ee.Geometry.Point([82.68436717634368,25.19338497492027]), {'name': '10: Jausara'}),
+    ee.Feature(
+        ee.Geometry.Point([82.70530986433197,25.17256866915564]), {'name': '11: Ratanbo'}),
+    ee.Feature(
+        ee.Geometry.Point([82.72556590681243,25.15765330901778]), {'name': '12: Babu Patali'}),
+    ee.Feature(
+        ee.Geometry.Point([82.7509717906015,25.14335771078932]), {'name': '13: Nanhupur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.7732877696054,25.129060438248413]), {'name': '14: Bargawan'}),
+    ee.Feature(
+        ee.Geometry.Point([82.80487346296478,25.1172483855261]), {'name': '15: Bhelampur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.83783244733978,25.111652804139112]), {'name': '16: Shilpi'}),
+    ee.Feature(
+        ee.Geometry.Point([82.86838817243743,25.122921421784284]), {'name': '17: Ishwarpatti'}),
+    ee.Feature(
+        ee.Geometry.Point([82.88263606672454,25.144833964224247]), {'name': '18: Chak Ghariyari'}),
+    ee.Feature(
+        ee.Geometry.Point([82.88933086042572,25.16969449686727]), {'name': '19: Sultanpur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.90169047956634,25.18771521419141]), {'name': '20: Marahachh'}),
+    ee.Feature(
+        ee.Geometry.Point([82.91473674421478,25.201384325394876]), {'name': '21: Rudauli'}),
+    ee.Feature(
+        ee.Geometry.Point([82.93155955915618,25.206276872974367]), {'name': '22: Betwar'}),
+    ee.Feature(
+        ee.Geometry.Point([82.94247609678732,25.20780589388793]), {'name': '23: Chitanuni'}),
+    ee.Feature(
+        ee.Geometry.Point([82.95318609506731,25.20828363913932]), {'name': '24: Madhopur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.96442991525774,25.20859426532098]), {'name': '25: Muradev'}),
+    ee.Feature(
+        ee.Geometry.Point([82.97515875131731,25.208050668982843]), {'name': '26: Tarapur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.9854584339345,25.208050668982843]), {'name': '27: Sarai Dangari Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([82.99910551340227,25.20859426532098]), {'name': '28: Tikari'}),
+    ee.Feature(
+        ee.Geometry.Point([83.01343923837786,25.21457366479582]), {'name': '29: Narottampur Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([83.0213356617177,25.221639849002305]), {'name': '30: Hakanipur Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([83.02966123849993,25.234761673500323]), {'name': '31: Mirzapur Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([83.02880293161516,25.24873602378006]), {'name': '32: Milkipur'}),
+    ee.Feature(
+        ee.Geometry.Point([83.02124983102922,25.26612408176351]), {'name': '33: Patel Nagar Colony'}),
+    ee.Feature(
+        ee.Geometry.Point([83.01226154775827,25.282199680759867]), {'name': '34: Gangotri Vihar Colony'}),
+    ee.Feature(
+        ee.Geometry.Point([83.00985828848093,25.301755677637754]), {'name': '35: Tilbhandeshwer'})
+  ];
+  
+var mainchannel = ee.FeatureCollection(waypoints);
+//Variables and imports **Enter Imports**
+exports.Result_depth_Sentinel_LowGang= function(startdateimport,enddateimport){
+  var atmprocess= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Sentinel_Atmospheric_Corrections/Sentinel_Surface_Reflectance_DOS_from_Reflectance_GISAGMAPS_METHOD');
+  var baseplotmap= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Stumpf_Depth_Algorithm/Basemap_Add_To_Map');
+  var Depthplotmap= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Stumpf_Depth_Algorithm/Depth_Add_To_Map');
+  var startdate= ee.String(startdateimport);//startdate,enddate: Time Period of Study**Enter**
+  var enddate= ee.String(enddateimport);//**Enter**
+  var cloudcover= ee.Number(7);//Maximum Cloud Cover**Enter**
+  //**Enter var i below**
+  var i= ee.Number(0).toInt();//Put the image number required here. As array index start from zero so the first image number will be zero.
+  var Reflectance= atmprocess.Sentinel_SR_DOS_GISMAPS(S2,Ganeshpahar,startdate,enddate,cloudcover,0);
+  var Depthcalc= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Stumpf_Depth_Algorithm/Depth_Calculation_Sentinel');
+  var SentinelImageCollectionUsed= S2.filterBounds(Ganeshpahar).filterDate(startdate,enddate).filterMetadata('CLOUDY_PIXEL_PERCENTAGE','less_than',cloudcover);
+  var Depth = ee.ImageCollection(Depthcalc.Depth_Sentinel(Reflectance).get('StumpfDepth'));
+  var ReflectanceList= Reflectance.toList(Reflectance.size());
+  var SentinelImageCollectionUsedList= SentinelImageCollectionUsed.toList(SentinelImageCollectionUsed.size());
+  var Depthlist= Depth.toList(Depth.size());
+  var MNDWImap = ee.ImageCollection(Depthcalc.Depth_Sentinel(Reflectance).get('MNDWIimage'));
+  
+  print(Depth, 'Stumpf Depth');
+  
+  Export.image.toDrive({
+  image: Depth.first(),
+  description: 'Stumpf Depth Image',
+  scale: 10,
+  region: Reflectance.geometry(),
+  maxPixels: 1e9
+  });
+  
+  Export.image.toDrive({
+  image: MNDWImap.first(),
+  description: 'MNDWI Image',
+  scale: 10,
+  region: Reflectance.geometry(),
+  maxPixels: 1e9
+  });
+  
+  //Map styling
+  
+  var panel= ui.Panel({
+    style: {
+      position: 'top-center',
+      padding: '5px'
+    }
+  });
+  var title= ui.Label({
+    value: 'Image Tile Name:\t'+ ee.Image(SentinelImageCollectionUsedList.get(i)).get('GRANULE_ID').getInfo() +'\nGeometry Imports Coordinates: \t('+ Ganeshpahar.coordinates().get(0).getInfo()+','+Ganeshpahar.coordinates().get(1).getInfo()+')',
+    style: {
+      fontSize: '14px',
+      fontWeight: 'bold',
+      margin: '0px',
+      whiteSpace: 'pre',
+      textAlign: 'center'
+    }
+  });
+  panel.add(title);
+  
+    var clipimage= ee.Image(ReflectanceList.get(i));
+    var clipgeometry= baseplotmap.Add_to_Map(clipimage,3,'Surface Reflectance');
+    var image= ee.Image(Depthlist.get(i)).clip(clipgeometry);//here put i
+    var geometry= image.geometry();
+    Depthplotmap.Add_to_Map(image, geometry,3,'Stumpf Depth', mainchannel);//here put i
+};
+/*
+  //Coordinates of survey on March 2 2021
+  var point1 = ee.Geometry.Point([92.04111111, 26.24916667]);
+  var point2 = ee.Geometry.Point([92.01277778, 26.27944444]);//No chlorophyll
+  var point3 = ee.Geometry.Point([92.04083333, 26.24888889]);
+  var point4 = ee.Geometry.Point([92.01833333, 26.28861111]);
+  var point5 = ee.Geometry.Point([92.01277778, 26.27944444]);
+  
+  Map.addLayer({
+    eeObject: point1,
+    name: '92.04111111, 26.24916667'
+  });
+  Map.addLayer({
+    eeObject: point2,
+    name: '92.01277778, 26.27944444 (No Chlorophyll)'
+  });
+  Map.addLayer({
+    eeObject: point3,
+    name: '92.04083333, 26.24888889'
+  });
+  Map.addLayer({
+    eeObject: point4,
+    name: '92.01833333, 26.28861111'
+  });
+  Map.addLayer({
+    eeObject: point5,
+    name: '92.01277778, 26.27944444'
+  });*/

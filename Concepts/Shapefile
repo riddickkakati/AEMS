@@ -1,0 +1,14 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var table = ee.FeatureCollection("users/rdkktidivinity/India-Shape"),
+    geometry = 
+    /* color: #d63000 */
+    /* shown: false */
+    ee.Geometry.Polygon(
+        [[[92.72933485732963, 26.214013279835495],
+          [93.04793837295463, 25.95746566143987],
+          [93.11385634170463, 26.548646504973934],
+          [92.57552626357963, 26.401133716849177]]]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+//Map.addLayer(table);
+var clip= table.filterBounds(geometry);
+Map.addLayer(clip);

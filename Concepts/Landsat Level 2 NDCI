@@ -1,0 +1,171 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var roi = /* color: #98ff00 */ee.Geometry.Polygon(
+        [[[92.8585470259031, 26.872466000710624],
+          [92.86129360793436, 26.85286436661848],
+          [92.8640401899656, 26.83264662485428],
+          [92.87296658156717, 26.814876538674444],
+          [92.87227993605936, 26.796490758940628],
+          [92.87227993605936, 26.77319782646012],
+          [92.86129360793436, 26.76400193219748],
+          [92.85442715285623, 26.738862690092905],
+          [92.84859066603983, 26.722917851510463],
+          [92.8527105390867, 26.714331243704653],
+          [92.86211371109462, 26.692784784970904],
+          [92.86486029312587, 26.6633345031195],
+          [92.86710288852497, 26.62711704782475],
+          [92.8904488357906, 26.63571022444302],
+          [92.88358238071247, 26.656576676494204],
+          [92.87259605258747, 26.69829813608513],
+          [92.87259605258747, 26.740004322550284],
+          [92.8849556717281, 26.764530232256128],
+          [92.89182212680622, 26.79395433568645],
+          [92.88083579868122, 26.804986407939097],
+          [92.87637260288044, 26.820919728799456],
+          [92.87293937534137, 26.837157154728732],
+          [92.86710288852497, 26.853392252794137],
+          [92.86584398327246, 26.87771606369212]]]),
+    roi3 = ee.FeatureCollection("users/riddickkakati/Kamengsejosa");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+// Made up ROI
+
+Map.addLayer(roi3)
+Map.centerObject(roi3, 12)
+
+// Import the Landsat 8 TOA image collection.
+var l8 = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
+              .filterDate('2011-01-01','2022-12-01')
+              .filterBounds(roi3).filterMetadata('CLOUD_COVER','less_than',7);
+          
+
+// Map a function over the Landsat 8 TOA collection to add an EVI band.
+var withEVI = l8.map(function(image) {
+  var evi = image.expression(
+    '((RED - GREEN) / (RED + GREEN))', {
+      'GREEN': image.select('SR_B3'),
+      'RED': image.select('SR_B4')
+}).rename('NDCI');
+  return image.addBands(evi);
+});
+
+
+print(withEVI.first())
+/*
+// Create a chart.
+var chart = ui.Chart.image.series({
+  imageCollection: withEVI.select('EVI'),
+  region: roi3,
+  reducer: ee.Reducer.mean(),
+  scale: 30
+}).setOptions({title: 'EVI over time'});
+
+
+Then use that property as x label in the chart:
+
+// Create a time series chart. 
+var tempTimeSeries = ui.Chart.image.seriesByRegion(
+    temps2013, regions, ee.Reducer.mean(), 'B11', 200, 'timeFormat', 'label')
+        .setChartType('ScatterChart')
+        .setOptions({
+          title: 'Temperature over time in regions of the American West',
+          vAxis: {title: 'Temperature (Kelvin)'},
+          lineWidth: 1,
+          pointSize: 4,
+          series: {
+            0: {color: 'FF0000'}, // urban
+            1: {color: '00FF00'}, // forest
+            2: {color: '0000FF'}  // desert 
+            }});
+
+
+
+*/
+
+var cloudlessEVI = l8.map(function(image) {
+  // Get a cloud score in [0, 100].
+  var qaMask = image.select('QA_PIXEL').eq(21824);
+
+  // Create a mask of cloudy pixels from an arbitrary threshold.
+  //var mask = cloud.lte(20);
+
+  // Compute EVI.
+  var evi = image.expression(
+    '((RED - GREEN) / (RED + GREEN))', {
+      'GREEN': image.select('SR_B3'),
+      'RED': image.select('SR_B4')
+}).rename('NDCI');
+
+  // Return the masked image with an NDVI band.
+  return image.addBands(evi).updateMask(qaMask);
+});
+
+
+
+cloudlessEVI= cloudlessEVI.map(function(image){
+    var green= image.select('SR_B3');
+    var SWIR1= image.select('SR_B6');
+    var NIR= image.select('SR_B5');
+    var red= image.select('SR_B4');
+    var blue= image.select('SR_B2');
+    var MNDWIimage= green.expression('(green-swir1)/(green+swir1)',{
+      green: green,
+      swir1: SWIR1
+    });
+    var NDVIimage= NIR.expression('(NIR-red)/(NIR+red)',{
+      NIR: NIR,
+      red: red
+    });
+    var EVIimage = NIR.expression('2.5 * (NIR - red) / (1 + NIR + 6 * red - 7.5 * blue)', {
+     NIR: NIR,
+     red: red,
+     blue: blue
+    });
+    var water = (MNDWIimage.lt(NDVIimage).or(MNDWIimage.lt(EVIimage))).and(EVIimage.gt(0.1));
+    var waterMasked = water.updateMask(water.gt(0));
+    return image.mask(waterMasked);
+});
+
+Map.addLayer(cloudlessEVI);
+
+var clip= cloudlessEVI.map(function(image) {
+  return image.clip(roi3);
+});
+
+clip = clip.map(function(image){
+  return image.set('timeFormat', image.date().format('dd-MM-yyyy'));
+});
+
+Map.addLayer(clip.mean())
+
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('NDCI'),
+  region: roi3,
+  reducer: ee.Reducer.mean(),
+  scale: 30,
+  xProperty: 'timeFormat'
+}).setOptions({title: 'Mean Cloud-masked NDCI over time'}));
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('NDCI'),
+  region: roi3,
+  reducer: ee.Reducer.min(),
+  scale: 30,
+  xProperty: 'timeFormat'
+}).setOptions({title: 'Min Cloud-masked NDCI over time'}));
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('NDCI'),
+  region: roi3,
+  reducer: ee.Reducer.max(),
+  scale: 30,
+  xProperty: 'timeFormat'
+}).setOptions({title: 'Max Cloud-masked NDCI over time'}));
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('NDCI'),
+  region: roi3,
+  reducer: ee.Reducer.stdDev(),
+  scale: 30,
+  xProperty: 'timeFormat'
+}).setOptions({title: 'Std.Dev Cloud-masked NDCI over time'}));
+

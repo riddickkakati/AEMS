@@ -1,0 +1,216 @@
+exports.Add_to_Map= function(img, sampling_geom, num_stddev, string, mainchannel) {
+  var stats = img.select(['Chla'],['value']).reduceRegion({
+    reducer: ee.Reducer.mean().combine({reducer2:ee.Reducer.stdDev(), sharedInputs:true})
+                              .setOutputs(['mean', 'stddev']), 
+    geometry: sampling_geom,
+    scale: 30, 
+    bestEffort: true
+  });
+  
+  var imggeom= img.geometry();
+  var clipmainchannel= mainchannel.filterBounds(imggeom);
+  
+  var vis_params = ee.Dictionary({
+      'min': ee.Number(stats.get('value_mean'))
+               .subtract(ee.Number(num_stddev).multiply(ee.Number(stats.get('value_stddev')))),
+      'max': ee.Number(stats.get('value_mean'))
+               .add(ee.Number(num_stddev).multiply(ee.Number(stats.get('value_stddev')))),
+      'palette': ['ff0000','ff7f00','ffff00','00ff00','0000ff','2e2b5f','8b00ff']
+    });
+    
+  Map.addLayer({
+    eeObject: img,
+    visParams: vis_params.getInfo(),
+    name: string,
+    shown: false
+  });
+  
+  function makeColorBarParams(palette) {
+  return {
+    bbox: [0, 0, 1, 0.1],
+    dimensions: '100x10',
+    format: 'png',
+    min: 0,
+    max: 1,
+    palette: palette,
+    };
+  }
+  var colorBar = ui.Thumbnail({
+    image: ee.Image.pixelLonLat().select(0),
+    params: makeColorBarParams(vis_params.get('palette')),
+    style: {stretch: 'horizontal', margin: '0px 8px', maxHeight: '24px'},
+  });
+  var dictmin= ee.Number.parse(ee.Number(vis_params.get('min')).format('%.3f'));
+  var minimum= dictmin.getInfo();
+  var dictmax= ee.Number.parse(ee.Number(vis_params.get('max')).format('%.3f'));
+  var maximum= dictmax.getInfo();
+  var mid= (dictmax.subtract(dictmin)).multiply(0.5).add(dictmin).format('%.3f');
+  var midval= mid.getInfo();
+  var legendLabels = ui.Panel({
+    widgets: [
+      ui.Label(minimum, {margin: '4px 8px'}),
+      ui.Label(
+          midval ,
+          {margin: '4px 8px', textAlign: 'center', stretch: 'horizontal'}),
+      ui.Label(maximum, {margin: '4px 8px'})
+    ],
+    layout: ui.Panel.Layout.flow('horizontal')
+  });
+  
+  var legendTitle = ui.Label({
+    value: 'Chlorophyll Map:\t' + string + '\t(mg/L)',
+    targetUrl: img.getDownloadURL({
+        name: string + ' Image 200m',
+        scale: 200,
+        region: img.geometry()
+    }),
+    style: {fontWeight: 'bold'}
+  });
+  var legendPanel = ui.Panel({
+    widgets: [legendTitle, colorBar, legendLabels],
+    style:{
+    position: 'top-left',
+    shown: false
+  }
+  });
+  
+  legendPanel.add(ui.Button({
+        label: 'Close',
+        onClick: function() {
+          legendPanel.style().set('shown', false);
+        }
+      }));
+      
+  
+  
+  Map.add(legendPanel);
+  
+  
+  var centroidcoord= img.geometry().centroid(1);
+  var lon= centroidcoord.coordinates().get(0).getInfo();
+  var lat= centroidcoord.coordinates().get(1).getInfo();
+  Map.setCenter(lon,lat,11);
+  
+  // Create an inspector panel with a horizontal layout.
+  var inspector = ui.Panel({
+    layout: ui.Panel.Layout.flow('vertical')
+  });
+  
+  // Add a label to the panel.
+  inspector.add(ui.Label('Point Chlorophyll- a ('+string+') concentration'));
+  inspector.add(ui.Button({
+    label: 'Show legend',
+    onClick: function() {
+          legendPanel.style().set('shown', true);
+        },
+    style: {
+      position: 'top-left'
+    }
+  }));
+  
+  // Add the panel to the default map.
+  Map.add(inspector);
+  
+  Map.style().set('cursor', 'crosshair');
+  
+  Map.onClick(function(coords) {
+    // Clear the panel and show a loading message.
+    inspector.clear();
+    inspector.style().set('shown', true);
+    inspector.add(ui.Label('Loading...', {color: 'gray'}));
+  
+    var point = ee.Geometry.Point(coords.lon, coords.lat);
+    var sampledPoint = img.reduceRegion(ee.Reducer.mean(), point,30);
+    print(sampledPoint,'SampledPoint');
+    var computedValue = sampledPoint.get('Chla');
+  
+    // Request the value from the server and use the results in a function.
+    computedValue.evaluate(function(result) {
+      inspector.clear();
+  
+      // Add a label with the results from the server.
+      inspector.add(ui.Label({
+        value: 'Chlorophyll- a ('+string+') algorithm',
+        style: {stretch: 'vertical', fontWeight: 'bold'}
+      }));
+      inspector.add(ui.Button({
+      label: 'Show legend',
+      onClick: function() {
+            legendPanel.style().set('shown', true);
+          },
+      style: {
+        position: 'top-left'
+      }
+    }));
+    // Add a button to hide the Panel.
+      inspector.add(ui.Button({
+        label: 'Close',
+        onClick: function() {
+          inspector.style().set('shown', false);
+        },
+        style: {
+        position: 'top-right'}
+      }));
+      inspector.add(ui.Label({
+        value: 'Chlorophyll-a ('+string+') algorithm: ' + result.toFixed(2) + ' mg/L',
+        style: {stretch: 'vertical'}
+      }));
+      
+      inspector.add(ui.Label({
+        value: 'Coordinates: '+'('+ coords.lon.toFixed(2) + ','+ coords.lat.toFixed(2) + ')',
+        style: {stretch: 'vertical'}
+      }));
+    });
+  }); 
+  // Plot chlorophyll- a spatial variation along Brahmaputra.
+var checkbox= ui.Button({
+style: {
+      position: 'bottom-right',
+      padding: '5px'
+    },
+label: 'Chlorophyll- a ('+string+') algorithm spatial variation',
+onClick: function(){
+  var chart = ui.Chart.image.byRegion({
+    image: img,
+    regions: clipmainchannel,
+    scale: 30,
+    xProperty: 'name'
+  });
+  chart.setOptions({
+    title: 'Chlorophyll- a ('+string+' algorithm) spatial variation along river',
+    vAxis: {
+      title: 'Chlorophyll- a value (mg/L)'
+    },
+    legend: {position: 'none'},
+    lineWidth: 0,
+    pointSize: 4
+  });
+  
+  Map.addLayer({
+    eeObject: clipmainchannel,
+    name: 'Chlorophyll- a ('+string+'algorithm) spatial variation points',
+    shown: true
+  });
+  
+  var ChartPanel = ui.Panel({style: {width: '30%'}});
+  var intro = ui.Panel([
+  ui.Label({
+    value: 'Charts of Chlorophyll- a: ('+string+' algorithm)',
+    style: {fontSize: '20px', fontWeight: 'bold'}
+  }),
+]);
+
+ui.root.remove(ChartPanel);
+ChartPanel.add(intro);
+ChartPanel.widgets().set(1, chart);
+ChartPanel.add(ui.Button({
+        label: 'Close',
+        onClick: function() {
+        ChartPanel.style().set('shown', false);
+        }
+      }));
+ui.root.add(ChartPanel);
+}
+});
+Map.add(checkbox);
+};

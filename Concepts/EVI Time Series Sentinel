@@ -1,0 +1,350 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var roi = ee.FeatureCollection("users/riddickkakati/NDVIAnalysisClipBounds");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+// Made up ROI
+
+Map.addLayer(roi)
+Map.centerObject(roi, 12)
+
+// Import the Landsat 8 TOA image collection.
+/*
+Dark Object Subtraction method for calculating Surface Reflectance for Sentinel 2 Imagery.
+Method implemented: GIS Ag Maps (https://www.gisagmaps.com/l8-atmospheric-correction)
+Developed by: Riddick Kakati
+Inputs required: Sentinel 2 image collection, Geometry (Study area), Starting time of study time period, Ending time of study time period, Maximum cloud Cover to be considered for images
+*/
+var Sentinel_SR_DOS_GISMAPS= function(S2,geometry,startdate,enddate,cc,eee){
+  var filter1 = S2.filterBounds(geometry).filterDate(startdate,enddate).filterMetadata('CLOUDY_PIXEL_PERCENTAGE','less_than',cc)//.select(ee.List.sequence(0,12));
+  var filter= filter1.map(function(image) {
+  return image.clip(roi);
+});
+  function maskS2clouds(image) {
+  var qa = image.select('QA60');
+
+  // Bits 10 and 11 are clouds and cirrus, respectively.
+  var cloudBitMask = 1 << 10;
+  var cirrusBitMask = 1 << 11;
+
+  // Both flags should be set to zero, indicating clear conditions.
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
+      .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+
+  return image.updateMask(mask);
+  }
+  filter = filter.map(maskS2clouds);
+  filter= filter.select(ee.List.sequence(0,12));
+  print('Original Images:',filter);
+  var count=filter.size();
+    //If 0 elements error
+  var errorgen= ee.Number(count);
+  print('Number of images to be processed:',errorgen);
+  var a= ee.String('Error: No cloud free images in the period.');
+  var b= ee.String('Warning: Too long date range. App might not responding.');
+  var c= ee.String('Generation successful =>');
+  var returnObj = ee.Algorithms.If(errorgen.eq(0), a , ee.Algorithms.If(errorgen.gte(12), b, c));
+  if (eee) {    
+      var panel= ui.Panel({
+      style: {
+        position: 'bottom-center',
+        padding: '5px'
+      }
+    });
+    var title= ui.Label({
+      value: returnObj.getInfo(),
+      style: {
+        fontSize: '14px',
+        fontWeight: 'bold',
+        margin: '0px',
+        whiteSpace: 'pre',
+        textAlign: 'center'
+      }
+    });
+    panel.add(title);
+    Map.add(panel);
+  }
+  //end 0 elements error
+  if (errorgen.getInfo()) {
+    var filterlist= filter.toList(count);
+    var imagearray= ee.List.sequence(0,count.subtract(1));
+    
+    var divide10000= function(image){
+      image= image.toFloat();
+      return image.divide(10000);
+    };
+    
+    var TOAReflectance= filter.map(divide10000);
+    print('TOA Reflectance:',TOAReflectance);
+    
+    var getHistData = function(image) {
+      //i=ee.Number(image).toInt();
+      var band=image.bandNames();
+      var bandseq= ee.List.sequence(0,(band.size()).subtract(1));
+      var histogramfunction= function(j){
+        j=ee.Number(j).toInt();
+        var j1=ee.String(band.get(j));
+        var histogram = image.select(j1).reduceRegion({
+        reducer: ee.Reducer.histogram({
+          maxBuckets: Math.pow(2, 8), 
+        }), 
+        geometry: image.geometry(), 
+        scale: 10, 
+        maxPixels: 1e10, 
+        });
+       // Get the list of DN values (x-axis of the histogram)
+        var dnList = ee.Array(ee.Dictionary(histogram.get(j1)).get('bucketMeans'));
+       // Get the list of Counts values (y-Axis of the histogram)
+        var countsList = ee.Array(ee.Dictionary(histogram.get(j1)).get('histogram'));
+        var signum= countsList.signum();
+        var countsnonzero= countsList.mask(signum).toList();
+        var countsnonzerofirst= ee.Number(countsnonzero.get(0));
+        countsList= countsList.toList();
+        var index= countsList.indexOf(countsnonzerofirst);
+        dnList= dnList.toList();
+        var darkobject= ee.Number(dnList.get(index));
+        var darkobjectnext= ee.Number(dnList.get(index.add(1)));
+        var DOS= ee.Algorithms.If(darkobjectnext.subtract(darkobject).lt(ee.Number(100)),darkobject,ee.Number(0).toDouble());
+        DOS= ee.Algorithms.If(darkobject.lt(ee.Number(0)),ee.Number(0).toDouble(),darkobject);
+        return ee.Image.constant(DOS);
+      };
+    return ee.ImageCollection(bandseq.map(histogramfunction)).toBands();
+    };
+    
+    
+    var Darkobjects= TOAReflectance.map(getHistData);
+    
+    
+    var minradsubtract= function(image){
+      return image.subtract(ee.Number(0.01));
+    };
+    
+    var Darkobjectminrad= Darkobjects.map(minradsubtract);
+    print('Dark objects with 0.01 reflectance subtracted :',Darkobjectminrad);
+    
+    
+    var RedBandObject= Darkobjectminrad.select(3);
+    
+    var listredbandobjects= ee.List(RedBandObject.toList(RedBandObject.size()));
+    var redbandobjectsize= listredbandobjects.size();
+    var iterator= ee.List.sequence(0,redbandobjectsize.subtract(1));
+    var redconstantcalc= function(i){
+      i=ee.Number(i).toInt();
+      var image= ee.Image(listredbandobjects.get(i));
+      var mean = image.reduceRegion({
+        reducer: ee.Reducer.mean(), 
+        geometry: geometry, 
+        scale: 10, 
+        maxPixels: 1e10
+      });
+      var redbanddn= ee.Number(mean.get(ee.String(mean.keys().get(0))));
+    return redbanddn;
+    };
+    
+    var redscatter= iterator.map(redconstantcalc);
+    
+    var listredbandobjects= ee.List(RedBandObject.toList(RedBandObject.size()));
+    var redbandobjectsize= listredbandobjects.size();
+    var iterator= ee.List.sequence(0,redbandobjectsize.subtract(1));
+    var TOAReflectanceobjects= ee.List(TOAReflectance.toList(filter.size()));
+    
+    var bluegreenrededgesNIRref= function(j){
+      j=ee.Number(j).toInt();
+      var redref= ee.Number(redscatter.get(j));
+      var blueref= (((redref.multiply(redref)).multiply(ee.Number(-13.04998369))).add(redref.multiply(ee.Number(1.87108273)))).add(ee.Number(0.02922965));
+      var greenref=(((redref.multiply(redref)).multiply(ee.Number(-6.94415673))).add(redref.multiply(ee.Number(1.55908871)))).add(ee.Number(0.00909009));
+      var rededge1ref= (((redref.multiply(redref)).multiply(ee.Number(2.37917491))).add(redref.multiply(ee.Number(0.78762518)))).subtract(ee.Number(0.00063928));
+      var rededge2ref= (((redref.multiply(redref)).multiply(ee.Number(3.72973644))).add(redref.multiply(ee.Number(0.64757496)))).subtract(ee.Number(0.00100617));
+      var rededge3ref= (((redref.multiply(redref)).multiply(ee.Number(5.02460471))).add(redref.multiply(ee.Number(0.50098859)))).subtract(ee.Number(0.00112357));
+      var NIRref= (((redref.multiply(redref)).multiply(ee.Number(6.2809185))).add(redref.multiply(ee.Number(0.33946616)))).subtract(ee.Number(0.00097318));
+      var rededge4ref= (((redref.multiply(redref)).multiply(ee.Number(6.64042269))).add(redref.multiply(ee.Number(0.28710159)))).subtract(ee.Number(0.00086581));
+      return(ee.Feature(null,{
+        bluescatter: blueref,
+        greenscatter: greenref,
+        rededge1: rededge1ref,
+        rededge2: rededge2ref,
+        rededge3: rededge3ref,
+        NIRscatter: NIRref,
+        rededge4: rededge4ref
+      }));
+    };
+    
+    var scatter= ee.FeatureCollection(iterator.map(bluegreenrededgesNIRref));
+    
+    var bluescatter= scatter.aggregate_array('bluescatter');
+    var greenscatter= scatter.aggregate_array('greenscatter');
+    var rededge1scatter= scatter.aggregate_array('rededge1');
+    var rededge2scatter= scatter.aggregate_array('rededge2');
+    var rededge3scatter= scatter.aggregate_array('rededge3');
+    var NIRscatter= scatter.aggregate_array('NIRscatter');
+    var rededge4scatter= scatter.aggregate_array('rededge4');
+    
+    var bluereflectance= TOAReflectance.select(1).toList(TOAReflectance.size());
+    var greenreflectance= TOAReflectance.select(2).toList(TOAReflectance.size());
+    var redreflectance= TOAReflectance.select(3).toList(TOAReflectance.size());
+    var rededge1reflectance= TOAReflectance.select(4).toList(TOAReflectance.size());
+    var rededge2reflectance= TOAReflectance.select(5).toList(TOAReflectance.size());
+    var rededge3reflectance= TOAReflectance.select(6).toList(TOAReflectance.size());
+    var NIRreflectance= TOAReflectance.select(7).toList(TOAReflectance.size());
+    var rededge4reflectance= TOAReflectance.select(8).toList(TOAReflectance.size());
+    var SWIR1reflectance= TOAReflectance.select(11).toList(TOAReflectance.size());
+    var SWIR2reflectance= TOAReflectance.select(12).toList(TOAReflectance.size());
+    
+    
+    var bluesurfacereflectancecalculator= function(l){
+      l=ee.Number(l).toInt();
+      var blueimage= ee.Image(bluereflectance.get(l));
+      var bluescattervalue= ee.Number(bluescatter.get(l));
+      var bluescatterimage= ee.Image.constant(ee.List.repeat(bluescattervalue,blueimage.bandNames().length()));
+      return blueimage.subtract(bluescatterimage);
+    };
+    
+    var greensurfacereflectancecalculator= function(l){
+      l=ee.Number(l).toInt();
+      var greenimage= ee.Image(greenreflectance.get(l));
+      var greenscattervalue= ee.Number(greenscatter.get(l));
+      var greenscatterimage= ee.Image.constant(ee.List.repeat(greenscattervalue,greenimage.bandNames().length()));
+      return greenimage.subtract(greenscatterimage);
+    };
+    
+    var redsurfacereflectancecalculator= function(l){
+      l=ee.Number(l).toInt();
+      var redimage= ee.Image(redreflectance.get(l));
+      var redscattervalue= ee.Number(redscatter.get(l));
+      var redscatterimage= ee.Image.constant(ee.List.repeat(redscattervalue,redimage.bandNames().length()));
+      return redimage.subtract(redscatterimage);
+    };
+    
+    var rededge1surfacereflectancecalculator= function(l){
+      l=ee.Number(l).toInt();
+      var rededge1image= ee.Image(rededge1reflectance.get(l));
+      var rededge1scattervalue= ee.Number(rededge1scatter.get(l));
+      var rededge1scatterimage= ee.Image.constant(ee.List.repeat(rededge1scattervalue,rededge1image.bandNames().length()));
+      return rededge1image.subtract(rededge1scatterimage);
+    };
+    
+    var rededge2surfacereflectancecalculator= function(l){
+      l=ee.Number(l).toInt();
+      var rededge2image= ee.Image(rededge2reflectance.get(l));
+      var rededge2scattervalue= ee.Number(rededge2scatter.get(l));
+      var rededge2scatterimage= ee.Image.constant(ee.List.repeat(rededge2scattervalue,rededge2image.bandNames().length()));
+      return rededge2image.subtract(rededge2scatterimage);
+    };
+    
+    var rededge3surfacereflectancecalculator= function(l){
+      l=ee.Number(l).toInt();
+      var rededge3image= ee.Image(rededge3reflectance.get(l));
+      var rededge3scattervalue= ee.Number(rededge3scatter.get(l));
+      var rededge3scatterimage= ee.Image.constant(ee.List.repeat(rededge3scattervalue,rededge3image.bandNames().length()));
+      return rededge3image.subtract(rededge3scatterimage);
+    };
+    
+    var NIRsurfacereflectancecalculator= function(l){
+      l=ee.Number(l).toInt();
+      var NIRimage= ee.Image(NIRreflectance.get(l));
+      var NIRscattervalue= ee.Number(NIRscatter.get(l));
+      var NIRscatterimage= ee.Image.constant(ee.List.repeat(NIRscattervalue,NIRimage.bandNames().length()));
+      return NIRimage.subtract(NIRscatterimage);
+    };
+    
+    var rededge4surfacereflectancecalculator= function(l){
+      l=ee.Number(l).toInt();
+      var rededge4image= ee.Image(rededge4reflectance.get(l));
+      var rededge4scattervalue= ee.Number(rededge4scatter.get(l));
+      var rededge4scatterimage= ee.Image.constant(ee.List.repeat(rededge4scattervalue,rededge4image.bandNames().length()));
+      return rededge4image.subtract(rededge4scatterimage);
+    };
+    
+    var blueSR= iterator.map(bluesurfacereflectancecalculator);
+    var greenSR= iterator.map(greensurfacereflectancecalculator);
+    var redSR= iterator.map(redsurfacereflectancecalculator);
+    var rededge1SR= iterator.map(rededge1surfacereflectancecalculator);
+    var rededge2SR= iterator.map(rededge2surfacereflectancecalculator);
+    var rededge3SR= iterator.map(rededge3surfacereflectancecalculator);
+    var NIRSR= iterator.map(NIRsurfacereflectancecalculator);
+    var rededge4SR= iterator.map(rededge4surfacereflectancecalculator);
+    
+    var compositeSRmaker= function(i){
+      var blueSRi = blueSR.get(i);
+      var greenSRi = greenSR.get(i);
+      var redSRi = redSR.get(i);
+      var rededge1SRi = rededge1SR.get(i);
+      var rededge2SRi = rededge2SR.get(i);
+      var rededge3SRi = rededge3SR.get(i);
+      var NIRSRi = NIRSR.get(i);
+      var rededge4SRi = rededge4SR.get(i);
+      var SWIR1SRi = ee.Image(SWIR1reflectance.get(i));
+      var SWIR2SRi = ee.Image(SWIR2reflectance.get(i));
+      return ee.Image([blueSRi,greenSRi,redSRi,rededge1SRi,rededge2SRi,rededge3SRi,NIRSRi,rededge4SRi,SWIR1SRi,SWIR2SRi]);
+    };
+    
+    var compositeSR= ee.ImageCollection(iterator.map(compositeSRmaker));
+    
+    print('Surface Reflectance for Blue, Green, Red, Red Edge (Band 5), Red Edge (Band 6), Red Edge (Band 7), NIR, Red Edge (Band 8a), SWIR (Band 11) and SWIR (Band 12):', compositeSR);
+    
+  return compositeSR;
+  }
+};
+
+
+var s21 = ee.ImageCollection("COPERNICUS/S2")
+var l8= Sentinel_SR_DOS_GISMAPS(s21,roi,'2016-09-01','2022-12-31',20,1);
+
+// Map a function over the Landsat 8 TOA collection to add an EVI band.
+var withEVI = l8.map(function(image) {
+  var evi = image.expression(
+    '2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))', {
+      'NIR': image.select('B8'),
+      'RED': image.select('B4'),
+      'BLUE': image.select('B2')
+}).rename('EVI');
+  return image.addBands(evi);
+});
+
+print(withEVI.first())
+
+// Create a chart.
+var chart = ui.Chart.image.series({
+  imageCollection: withEVI.select('EVI'),
+  region: roi,
+  reducer: ee.Reducer.mean(),
+  scale: 10
+}).setOptions({title: 'EVI over time'});
+
+function maskS2clouds(image) {
+  var qa = image.select('QA60');
+
+  // Bits 10 and 11 are clouds and cirrus, respectively.
+  var cloudBitMask = 1 << 10;
+  var cirrusBitMask = 1 << 11;
+
+  // Both flags should be set to zero, indicating clear conditions.
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
+      .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+
+  return image.updateMask(mask);
+  }
+
+var cloudlessEVI = l8.map(function(image) {
+ 
+  // Compute EVI.
+  var evi = image.expression(
+    '2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))', {
+      'NIR': image.select('B8'),
+      'RED': image.select('B4'),
+      'BLUE': image.select('B2')
+}).rename('EVI');
+
+  
+
+  // Return the masked image with an NDVI band.
+  return maskS2clouds(image.addBands(evi));
+});
+
+
+Map.addLayer(cloudlessEVI.mean())
+
+print(ui.Chart.image.series({
+  imageCollection: cloudlessEVI.select('EVI'),
+  region: roi,
+  reducer: ee.Reducer.mean(),
+  scale: 10
+}).setOptions({title: 'Cloud-masked EVI over time'}));

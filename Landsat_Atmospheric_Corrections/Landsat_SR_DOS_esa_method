@@ -1,0 +1,179 @@
+/*
+Dark Object Subtraction method for calculating Surface Reflectance for Landsat 8 Imagery.
+Method implemented: Dark Object Subtraction {Pat S.ChavezJr.(1988)}. 
+Guide: http://eoscience.esa.int/landtraining2017/files/materials/D4P1b2I.pdf
+Developed by: Riddick Kakati
+Inputs required: Landsat 8 image collection, Geometry (Study area), Starting time of study time period, Ending time of study time period, Maximum cloud Cover to be considered for images
+*/
+exports.Landsat_SR_DOS_esa_method= function(L8,geometry,startdate,enddate,cc,eee){
+  var filter = L8.filterBounds(geometry).filterDate(startdate,enddate).filterMetadata('CLOUD_COVER','less_than',cc);//.select(ee.List.sequence(0,10));//selecting first 11 bands only as the 12th band is quality assessment band which has no application in this atmospheric correction code
+  function CloudRemoval (image) {
+    var removecloud = image.mask(image.select('BQA').eq(2720));
+    return removecloud;
+  }
+  filter = filter.map(CloudRemoval);
+  filter = filter.select(ee.List.sequence(0,10));
+  print('Original Image:',filter);
+  var count=filter.size();
+  //If 0 elements error
+  var errorgen= ee.Number(count);
+  print(errorgen,'Number of images to be processed:');
+  var a= ee.String('Error: No cloud free images in the period.');
+  var b= ee.String('Warning: Too long date range. App might not responding.');
+  var c= ee.String('Generation successful!');
+  var returnObj = ee.Algorithms.If(errorgen.eq(0), a , ee.Algorithms.If(errorgen.gte(12), b, c));
+  if (eee) {       
+      var panel= ui.Panel({
+      style: {
+        position: 'bottom-center',
+        padding: '5px'
+      }
+    });
+    var title= ui.Label({
+      value: returnObj.getInfo(),
+      style: {
+        fontSize: '14px',
+        fontWeight: 'bold',
+        margin: '0px',
+        whiteSpace: 'pre',
+        textAlign: 'center'
+      }
+    });
+    panel.add(title);
+    Map.add(panel);
+  }
+  //end 0 elements error
+  if (errorgen.getInfo()) {
+    var filterlist= filter.toList(count);
+    var imagearray= ee.List.sequence(0,count.subtract(1));
+    
+    //TOA Reflectance
+    var TOAReflectanceCalc= function(i){
+      i=ee.Number(i).toInt();
+      var image= ee.Image(filterlist.get(i));
+      return ee.Algorithms.Landsat.TOA(image);
+    };
+    var TOAReflectance= ee.ImageCollection(imagearray.map(TOAReflectanceCalc));
+    //TOA Radiance
+    var TOARadianceCalc= function(i){
+      i=ee.Number(i).toInt();
+      var image= ee.Image(filterlist.get(i));
+      return ee.Algorithms.Landsat.calibratedRadiance(image);
+    };
+    var TOARadiance= ee.ImageCollection(imagearray.map(TOARadianceCalc));
+    //ESUN Calculator
+    var ListTOARad= TOARadiance.toList(TOARadiance.size());
+    var ListTOARef= TOAReflectance.toList(TOAReflectance.size());
+    var ListFilter= filter.toList(filter.size());
+    var esuncalc= function(i){
+      i=ee.Number(i).toInt();
+      var draw= ee.Image(ListFilter.get(i));
+      var pie= ee.Image.constant(ee.List.repeat(ee.Number(Math.PI),draw.bandNames().length()));
+      var draw1= ee.Number(draw.get('EARTH_SUN_DISTANCE'));
+      var distance= ee.Image.constant(ee.List.repeat(draw1,draw.bandNames().length()));
+      var sunele = draw.get('SUN_ELEVATION');
+      var sinsunele = ee.Image.constant(ee.List.repeat(ee.Number(sunele).sin(),draw.bandNames().length())); 
+      var radimg= ee.Image(ListTOARad.get(i));
+      var refimg= ee.Image(ListTOARef.get(i));
+      var esuninum= (((radimg.multiply(pie)).multiply(distance)).multiply(distance));
+      var esuniden= refimg;
+      var esuni=esuninum.divide(esuniden);
+      return esuni;
+    };
+    var ESUN= ee.ImageCollection(imagearray.map(esuncalc));
+    print('TOA Radiance:',TOARadiance, 'TOAReflectance:', TOAReflectance, 'ESUN:',ESUN);
+    
+    //Function to get Histogram values as table
+    var getHistData = function(image) {
+      //i=ee.Number(image).toInt();
+      var band=image.bandNames();
+      var bandseq= ee.List.sequence(0,(band.size()).subtract(1));
+      var histogramfunction= function(j){
+        j=ee.Number(j).toInt();
+        var j1=ee.String(band.get(j));
+        var histogram = image.select(j1).reduceRegion({
+        reducer: ee.Reducer.histogram({
+          maxBuckets: Math.pow(2, 8), 
+        }), 
+        geometry: image.geometry(), 
+        scale: 10, 
+        maxPixels: 1e10, 
+        });
+       // Get the list of DN values (x-axis of the histogram)
+        var dnList = ee.Array(ee.Dictionary(histogram.get(j1)).get('bucketMeans'));
+       // Get the list of Counts values (y-Axis of the histogram)
+        var countsList = ee.Array(ee.Dictionary(histogram.get(j1)).get('histogram'));
+        var signum= countsList.signum();
+        var countsnonzero= countsList.mask(signum).toList();
+        var countsnonzerofirst= ee.Number(countsnonzero.get(0));
+        countsList= countsList.toList();
+        var index= countsList.indexOf(countsnonzerofirst);
+        dnList= dnList.toList();
+        var darkobject= ee.Number(dnList.get(index));
+        var darkobjectnext= ee.Number(dnList.get(index.add(1)));
+        var DOS= ee.Algorithms.If(darkobjectnext.subtract(darkobject).lt(ee.Number(100)),darkobject,ee.Number(0).toDouble());
+        DOS= ee.Algorithms.If(darkobject.lt(ee.Number(0)),ee.Number(0).toDouble(),darkobject);
+        return ee.Image.constant(DOS);
+      };
+    return ee.ImageCollection(bandseq.map(histogramfunction)).toBands();
+    };
+    
+    var Darkobjects= TOARadiance.map(getHistData);
+    print('Darkobjects:',Darkobjects);
+    
+    var Darkobjectslist= Darkobjects.toList(count);
+    var ESUNlist= ESUN.toList(count);
+    
+    var Pathradiancecalc= function(i){
+      i= ee.Number(i).toInt();
+      var filterimage= ee.Image(filterlist.get(i));
+      var darkobjectimage= ee.Image(Darkobjectslist.get(i));
+      var esunimage= ee.Image(ESUNlist.get(i));
+      var pie= ee.Image.constant(ee.List.repeat(ee.Number(Math.PI),filterimage.bandNames().length()));
+      var distanceextract= ee.Number(filterimage.get('EARTH_SUN_DISTANCE'));
+      var distance= ee.Image.constant(ee.List.repeat(distanceextract,filterimage.bandNames().length()));
+      var sunele = ee.Number(filterimage.get('SUN_ELEVATION'));
+      var sinsunele = ee.Image.constant(ee.List.repeat(ee.Number(sunele).sin(),filterimage.bandNames().length())); 
+      var pathradiance= darkobjectimage.expression('DarkObject-((0.01*esun*sinsunele)/(pie*d*d))',{
+        'DarkObject': darkobjectimage,
+        'esun': esunimage,
+        'sinsunele': sinsunele,
+        'pie': pie,
+        'd': distance
+        });
+      return pathradiance;
+    };
+    
+    var pathradiance= imagearray.map(Pathradiancecalc);
+    print('Path Radiance:',pathradiance);//0.01 Reflectance value subtracted as per Chavez et. al
+    
+    var TOARadiancelist= TOARadiance.toList(count);
+    
+    var SurfaceReflectancecalc= function(i){
+      i= ee.Number(i).toInt();
+      var filterimage= ee.Image(filterlist.get(i));
+      var TOARadianceimage= ee.Image(TOARadiancelist.get(i));
+      var pathradianceimage= ee.Image(pathradiance.get(i));
+      var esunimage= ee.Image(ESUNlist.get(i));
+      var pie= ee.Image.constant(ee.List.repeat(ee.Number(Math.PI),filterimage.bandNames().length()));
+      var distanceextract= ee.Number(filterimage.get('EARTH_SUN_DISTANCE'));
+      var distance= ee.Image.constant(ee.List.repeat(distanceextract,filterimage.bandNames().length()));
+      var sunele = ee.Number(filterimage.get('SUN_ELEVATION'));
+      var sinsunele = ee.Image.constant(ee.List.repeat(ee.Number(sunele).sin(),filterimage.bandNames().length())); 
+      var surfacereflectance= TOARadianceimage.expression('(pie*(TOAradiance-pathradiance)*d*d)/(esun*sinsunele)',{
+        'TOAradiance': TOARadianceimage,
+        'pathradiance': pathradianceimage,
+        'esun': esunimage,
+        'sinsunele': sinsunele,
+        'pie': pie,
+        'd': distance
+        });
+      return surfacereflectance;
+    };
+    
+    var surfacereflectance= ee.ImageCollection(imagearray.map(SurfaceReflectancecalc));
+    print('Surface Reflectance:',surfacereflectance);
+  
+  return surfacereflectance;
+  }
+};

@@ -1,0 +1,18 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var geometry = /* color: #98ff00 */ee.Geometry.Point([93.25418255284177, 26.710714602357736]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+var collection = ee.ImageCollection('COPERNICUS/S1_GRD').filter(ee.Filter.eq('instrumentMode', 'IW')).filterMetadata('resolution_meters', 'equals' , 10).filterBounds(geometry).select(0,1);
+var before= collection.filterDate('2018-10-04', '2018-10-05').mosaic();
+var after= collection.filterDate('2018-10-16', '2018-10-17').mosaic();
+print(collection);
+Map.centerObject(geometry,7);
+Map.addLayer(collection.first());
+Map.addLayer(before, {min:-15,max:0}, 'Before flood', 0);
+Map.addLayer(after, {min:-15,max:0}, 'After flood', 0);
+
+var SMOOTHING_RADIUS = 50;
+var before_filtered = before.focal_mean(SMOOTHING_RADIUS, 'circle', 'meters');
+var after_filtered = after.focal_mean(SMOOTHING_RADIUS, 'circle', 'meters');
+
+Map.addLayer(before_filtered, {min:-15,max:0}, 'Before Flood Filtered', 0);
+Map.addLayer(before_filtered, {min:-15,max:0}, 'After Flood Filtered', 0);

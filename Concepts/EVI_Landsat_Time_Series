@@ -1,0 +1,111 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var roi = ee.FeatureCollection("users/riddickkakati/NDVIAnalysisClipBounds");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+// Made up ROI
+
+Map.addLayer(roi)
+Map.centerObject(roi, 12)
+
+// Import the Landsat 8 TOA image collection.
+var l8 = ee.ImageCollection('LANDSAT/LC08/C01/T1_TOA')
+              .filterDate('2016-10-01','2022-12-01')
+              .filterBounds(roi);
+
+// Map a function over the Landsat 8 TOA collection to add an EVI band.
+var withEVI = l8.map(function(image) {
+  var evi = image.expression(
+    '2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))', {
+      'NIR': image.select('B5'),
+      'RED': image.select('B4'),
+      'BLUE': image.select('B2')
+}).rename('EVI');
+  return image.addBands(evi);
+});
+
+
+print(withEVI.first())
+/*
+// Create a chart.
+var chart = ui.Chart.image.series({
+  imageCollection: withEVI.select('EVI'),
+  region: roi,
+  reducer: ee.Reducer.mean(),
+  scale: 30
+}).setOptions({title: 'EVI over time'});
+*/
+
+var cloudlessEVI = l8.map(function(image) {
+  // Get a cloud score in [0, 100].
+  var cloud = ee.Algorithms.Landsat.simpleCloudScore(image).select('cloud');
+
+  // Create a mask of cloudy pixels from an arbitrary threshold.
+  var mask = cloud.lte(20);
+
+  // Compute EVI.
+  var evi = image.expression(
+    '2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))', {
+      'NIR': image.select('B5'),
+      'RED': image.select('B4'),
+      'BLUE': image.select('B2')
+}).rename('EVI');
+
+  // Return the masked image with an NDVI band.
+  return image.addBands(evi).updateMask(mask);
+});
+
+cloudlessEVI= cloudlessEVI.map(function(image){
+    var green= image.select('B3');
+    var SWIR1= image.select('B6');
+    var NIR= image.select('B5');
+    var red= image.select('B4');
+    var blue= image.select('B2');
+    var MNDWIimage= green.expression('(green-swir1)/(green+swir1)',{
+      green: green,
+      swir1: SWIR1
+    });
+    var NDVIimage= NIR.expression('(NIR-red)/(NIR+red)',{
+      NIR: NIR,
+      red: red
+    });
+    var EVIimage = NIR.expression('2.5 * (NIR - red) / (1 + NIR + 6 * red - 7.5 * blue)', {
+     NIR: NIR,
+     red: red,
+     blue: blue
+    });
+    var water = (MNDWIimage.lt(NDVIimage).or(MNDWIimage.lt(EVIimage))).and(EVIimage.gt(0.1));
+    var waterMasked = water.updateMask(water.gt(0));
+    return image.mask(waterMasked);
+});
+var clip= cloudlessEVI.map(function(image) {
+  return image.clip(roi);
+});
+Map.addLayer(clip.mean())
+
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('EVI'),
+  region: roi,
+  reducer: ee.Reducer.mean(),
+  scale: 30
+}).setOptions({title: 'Mean Cloud-masked EVI over time'}));
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('EVI'),
+  region: roi,
+  reducer: ee.Reducer.min(),
+  scale: 30
+}).setOptions({title: 'Min Cloud-masked EVI over time'}));
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('EVI'),
+  region: roi,
+  reducer: ee.Reducer.max(),
+  scale: 30
+}).setOptions({title: 'Max Cloud-masked EVI over time'}));
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('EVI'),
+  region: roi,
+  reducer: ee.Reducer.stdDev(),
+  scale: 30
+}).setOptions({title: 'Std.Dev Cloud-masked EVI over time'}));

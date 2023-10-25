@@ -1,0 +1,418 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var L8 = ee.ImageCollection("LANDSAT/LC08/C01/T1");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+
+var geometry = ee.Geometry.Point([91.9716, 26.2839]);
+
+var filter = L8.filterBounds(geometry).filterDate('2021-01-01','2021-05-15').filterMetadata('CLOUD_COVER','less_than',7);
+//print(filter);
+var lengthfilter=filter.first().bandNames().length();
+var filterbands=filter.first().bandNames();
+//print(lengthfilter);
+var bands = ee.List.sequence(1, lengthfilter);
+var bandint= function(element){
+  var intelement= ee.Number(element);
+  return ee.String(ee.Number(element).toInt());
+};
+var bands1= bands.map(bandint);
+//print(bands1);
+var filterrename=function(image){
+ return image.select(filterbands).rename(bands1);
+};
+var filter1=filter.map(filterrename);//For Radiance, as radiance correction values are available for all bands.
+//print(filter1);
+
+var filter2=filter1.select(ee.List.sequence(0, 9));
+
+
+//RADIANCE
+var map_radiance = function(image) {
+  image=image;
+  var bandnames=image.bandNames();
+  var length=ee.Number(bandnames.length());
+  length=length.subtract(1);
+  var bands = ee.List.sequence(1, length);
+  var radiance_mult = function(i) {
+    i=ee.Number(i).toInt();
+    var radmult= image.get(i.format('RADIANCE_MULT_BAND_%s'));
+    var image2= ee.Image.constant(radmult);
+    var image1=image.select(ee.String(i));
+    return image2;
+  };
+   var radiance_add = function(i) {
+    i=ee.Number(i).toInt();
+    var radadd= image.get(i.format('RADIANCE_ADD_BAND_%s'));
+    var image2= ee.Image.constant(radadd);
+    var image1=image.select(ee.String(i));
+    return image2;
+   };
+   var image_data_cube = function(i) {
+    i=ee.Number(i).toInt();
+    var image1=image.select(ee.String(i));
+    return image1;
+   };
+  
+  var Radiance_Mult= ee.ImageCollection(bands.map(radiance_mult)).toBands();
+  var Radiance_Add= ee.ImageCollection(bands.map(radiance_add)).toBands();
+  var Image_Data_Cube= ee.ImageCollection(bands.map(image_data_cube)).toBands();
+  var Radiance = Image_Data_Cube.expression(//write expression such that variables are image collections not images
+      '((img*mulconst) + addconst)', {//use scalar product (not vector product) for evaluating image collections
+        'img': Image_Data_Cube,
+        'mulconst': Radiance_Mult,
+        'addconst': Radiance_Add
+        });
+  
+  return Radiance;
+};
+
+//REFLECTANCE
+var map_reflectance = function(image) {
+  image=image;
+  var bandnames=image.bandNames();
+  var length=ee.Number(bandnames.length());
+  length=length.subtract(1);
+  var sunele = image.get('SUN_ELEVATION');
+  var sinsunele = ee.Image.constant(ee.List.repeat(ee.Number(sunele).sin(),length)); 
+  var bands = ee.List.sequence(1, length);
+  var reflectance_mult = function(i) {
+    i=ee.Number(i).toInt();
+    var radmult= image.get(i.format('REFLECTANCE_MULT_BAND_%s'));
+    var image2= ee.Image.constant(radmult);
+    var image1=image.select(ee.String(i));
+    return image2;
+  };
+   var reflectance_add = function(i) {
+    i=ee.Number(i).toInt();
+    var radadd= image.get(i.format('REFLECTANCE_ADD_BAND_%s'));
+    var image2= ee.Image.constant(radadd);
+    var image1=image.select(ee.String(i));
+    //var image3= image1.addBands(image2);
+    return image2;
+   };
+   var image_data_cube = function(i) {
+    i=ee.Number(i).toInt();
+    var image1=image.select(ee.String(i));
+    return image1;
+   };
+  
+  var Reflectance_Mult= ee.ImageCollection(bands.map(reflectance_mult)).toBands();
+  var Reflectance_Add= ee.ImageCollection(bands.map(reflectance_add)).toBands();
+  var Image_Data_Cube= ee.ImageCollection(bands.map(image_data_cube)).toBands();
+  var Reflectance = Image_Data_Cube.expression(//write expression such that variables are image collections not images
+      '((img*mulconst) + addconst)/(sinsunele)', {//use scalar product (not vector product) for evaluating image collections
+        'img': Image_Data_Cube,
+        'mulconst': Reflectance_Mult,
+        'addconst': Reflectance_Add,
+        'sinsunele': sinsunele
+        });
+  
+  return Reflectance;
+};
+
+//ESUN calculator
+var Radiance= filter1.map(map_radiance);
+var Reflectance= filter2.map(map_reflectance);
+print('Radiance:',Radiance, 'Reflectance:',Reflectance);
+
+var Radiance1=Radiance.select(ee.List.sequence(0, 8));
+var Radiance2= ee.List(Radiance1.toList(Radiance1.size()));//Image collection to list and save as server list
+var Reflectance2= ee.List(Reflectance.toList(Reflectance.size()));
+var filter3=ee.List(filter2.select(ee.List.sequence(0, 8)).toList(filter2.size()));
+var images = ee.List.sequence(0, (filter3.size().subtract(1)));
+
+
+var esuncalc = function(i) {
+  i=ee.Number(i).toInt();
+  var selectedimage= ee.Image(filter3.get(i));
+  var geom= ee.Image(filter3.get(i));//imagecollectionindexing
+  var selectedradimage= ee.Image(Radiance2.get(i));
+  var selectedrefimage= ee.Image(Reflectance2.get(i));
+  var bandnames=selectedimage.bandNames();
+  var length=ee.Number(bandnames.length());
+  length=length.subtract(1);
+  var pie= ee.Image.constant(ee.List.repeat(ee.Number(Math.PI),(length.add(1))));
+  var sunele = selectedimage.get('SUN_ELEVATION');
+  var sinsunele = ee.Image.constant(ee.List.repeat(ee.Number(sunele).sin(),(length.add(1)))); 
+  var sundistance= selectedimage.get('EARTH_SUN_DISTANCE');
+  var sundistimage = ee.Image.constant(ee.List.repeat(ee.Number(sundistance),(length.add(1)))); 
+  var bands = ee.List.sequence(1, length.add(1));
+  var radmaxextract = function(j) {
+    j=ee.Number(j).toInt();
+    var bounds= geom.geometry();
+    var theMax = (selectedradimage.select(i)).reduceRegion({
+      reducer: ee.Reducer.max(),
+      geometry: bounds,
+      scale: 30,
+      crs: 'EPSG:4326',
+      bestEffort: ee.Algorithms.IsEqual(1, 1)
+    });
+    var radmax= theMax.values();
+    var image2= ee.Image.constant(ee.Number(radmax));
+    return image2;
+  };
+  var refmaxextract = function(j) {
+    j=ee.Number(j).toInt();
+    var bounds= geom.geometry();
+    var theMax = (selectedradimage.select(i)).reduceRegion({
+      reducer: ee.Reducer.max(),
+      geometry: bounds,
+      scale: 30,
+      crs: 'EPSG:4326',
+      bestEffort: ee.Algorithms.IsEqual(1, 1)
+    });
+    var refmax= theMax.values();
+    var image2= ee.Image.constant(ee.Number(refmax));
+    return image2;
+  };
+  
+  var Radmax= ee.ImageCollection(bands.map(radmaxextract)).toBands();
+  var Refmax= ee.ImageCollection(bands.map(refmaxextract)).toBands();
+  var esunsingle = Radmax.expression(//write expression such that variables are image collections not images
+      '(pie*Radmax*d*d)/(Refmax*sinsunele)', {//use scalar product (not vector product) for evaluating image collections
+        'pie': pie,
+        'Radmax': Radmax,
+        'Refmax': Refmax,
+        'd': sundistimage,
+        'sinsunele': sinsunele
+        });
+  
+  return esunsingle;
+};
+
+var esun= ee.ImageCollection(images.map(esuncalc));
+print('ESUN:',esun);
+
+Map.addLayer(esun.first().select([1,2,3]));
+
+
+/*var esuncalcconstants= function(i){
+  i=ee.Number(i).toInt();
+  var j= i.add(1);
+  var selectedimage= ee.Image(filter3.get(i));
+  var pie= ee.Image.constant(ee.List.repeat(ee.Number(Math.PI),selectedimage.bandNames().length()));
+  var d= ee.Number(selectedimage.get('EARTH_SUN_DISTANCE'));
+  var dimage= ee.Image.constant(ee.List.repeat(d,selectedimage.bandNames().length()));
+  var sunele = selectedimage
+  .get('SUN_ELEVATION');
+  var sinsunele = ee.Image.constant(ee.List.repeat(ee.Number(sunele).sin(),selectedimage.bandNames().length())); 
+  var bandcount= ee.List.sequence(1, (selectedimage.bandNames().length()));
+  var radrefcalc= function (j){
+    var radmax= ee.Number(selectedimage.get(j.format('RADIANCE_MAXIMUM_BAND_%s')));
+    var radmaximage= ee.Image.constant(ee.List.repeat(radmax,selectedimage.bandNames().length()));
+  }
+  
+  var esunic= pie.expression(
+    '(pie*d*d)/(sinsunele)',{
+      'pie':pie,
+      //'Radiance': radimg,
+      'd': draw2,
+      //'Reflectance': refimg,
+      'sinsunele': sinsunele
+       });
+  return esunic;
+};
+
+var esunconstants= ee.ImageCollection(images.map(esuncalcconstants));
+var Radiance1=Radiance.select(ee.List.sequence(0, 8));
+//print(Radiance1);
+
+var Radiance2= ee.List(Radiance1.toList(Radiance1.size()));//Image collection to list and save as server list
+var Reflectance2= ee.List(Reflectance.toList(Reflectance.size()));
+var esunconstants2=ee.List(esunconstants.toList(esunconstants.size()));
+
+var iterations = ee.List.sequence(0, (Reflectance2.size().subtract(1)));
+var esuncalc= function(i){
+  i=ee.Number(i).toInt();
+  var radianceimage= ee.Image(Radiance2.get(i));
+  var reflectanceimage= ee.Image(Reflectance2.get(i));
+  var constantimage= ee.Image(esunconstants2.get(i));
+  var bandcount= ee.List.sequence(0, ((radianceimage.bandNames()).length()).subtract(1));
+  var bandcalc= function(j){
+    j=ee.Number(j).toInt();
+    var radianceband= radianceimage.select(j);
+    var reflectanceband= reflectanceimage.select(j);
+    var constantband= constantimage.select(j);
+    return (constantband.multiply(radianceband)).divide(reflectanceband);
+  };
+  return ee.ImageCollection(bandcount.map(bandcalc)).toBands();
+};
+
+var esuni= ee.ImageCollection(iterations.map(esuncalc));
+print('esuni:',esuni);
+
+//Map.addLayer(esuni.first().select([1,2,3]));
+
+//print('ESUN constants:',esunconstants);
+//print('Radiance2:',Radiance2, 'Reflectance2:', Reflectance2);
+
+/*
+//To mask clouds in surface reflectance data.
+function maskL8sr(image) {
+  // Bits 3 and 5 are cloud shadow and cloud, respectively.
+  var cloudShadowBitMask = 1 << 3;
+  var cloudsBitMask = 1 << 5;
+
+  // Get the pixel QA band.
+  var qa = image.select('pixel_qa');
+
+  // Both flags should be set to zero, indicating clear conditions.
+  var mask = qa.bitwiseAnd(cloudShadowBitMask).eq(0)
+      .and(qa.bitwiseAnd(cloudsBitMask).eq(0));
+
+  // Return the masked image, scaled to reflectance, without the QA bands.
+  return image.updateMask(mask).divide(10000)
+      .select("B[0-9]*")
+      .copyProperties(image, ["system:time_start"]);
+}
+
+// Map the function over one year of data.
+var collection = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR')
+    .filterDate('2016-01-01', '2016-12-31')
+    .map(maskL8sr)//Use reflectance data obtained after DOS processing.
+    
+    
+
+
+
+
+
+
+/*
+Map.addLayer(reference, {min:0, max:255}, 'Reference Image')
+Map.addLayer(target, {min:0, max: 255}, 'Target Image')
+Map.centerObject(target)
+
+// Array basics
+var test1 = ee.Array([0, 1, 2, 3, 4, 5])
+var test2 = ee.Array([1, 1, 1, 1, 1, 1])
+print(test1)
+print(test2)
+print(test1.accum({axis:0})) // [0, 1, 3, 6, 10, 15]
+var test2 = ee.Array([1, 1, 1, 1, 1, 1])
+// Combine along axis 0
+print(ee.Array.cat([test1, test2], 0)) // [0,1,2,3,4,5,1,1,1,1,1,1]
+// Combine along axis 1
+print(ee.Array.cat([test1, test2], 1)) // [[0,1],[1,1],[2,1],[3,1],[4,1],[5,1]]
+
+var getHistData = function(image, band) {
+  var histogram = image.reduceRegion({
+    reducer: ee.Reducer.histogram({
+      maxBuckets: Math.pow(2, 8), 
+    }), 
+    geometry: image.geometry(), 
+    scale: 10, 
+    maxPixels: 1e9, 
+  });
+  // Get the list of DN values (x-axis of the histogram)
+  var dnList = ee.List(ee.Dictionary(histogram.get(band)).get('bucketMeans'));
+  // Get the list of Counts values (y-Axis of the histogram)
+  var countsList = ee.List(ee.Dictionary(histogram.get(band)).get('histogram'));
+  // Compute the cumulative sum of the counts
+  var cumulativeCountsArray = ee.Array(countsList).accum({axis:0});
+  // The last element of the array is the total count, so extract it.
+  var totalCount = cumulativeCountsArray.get([-1]);
+  // Divide each value by the total so that the values are between 0 and 1
+  // This will be the cumulative probability at each DN
+  var cumulativeProbabilities = cumulativeCountsArray.divide(totalCount);
+  
+  // Create a merged array with DN and cumulative probabilities
+  var array = ee.Array.cat({arrays: [dnList, cumulativeProbabilities], axis:1});
+
+  // FeatureCollections give is a lot of flexibility such as charting, classification etc.
+  // Convert the array into a feature collection with null geometries
+  var fc = ee.FeatureCollection(array.toList().map(function(list) {
+    return ee.Feature(null, {
+      dn: ee.List(list).get(0), 
+      probability: ee.List(list).get(1)});
+  }));
+  return fc
+};
+
+// Define a function to display Cumulative Distribution Function (CDF) of a band
+var showCdf = function(image, name, band) {
+  var cdf = getHistData(image, band)
+  
+  var options = {
+    title: 'Cumulative Distribution Function (CDF) of ' + name ,
+    fontSize: 20,
+    hAxis: {title: 'DN'},
+    vAxis: {title: 'Cumulative Probability'},
+    series: {
+      0: {color: band},
+    }
+  }; 
+  
+  var cdfChart = ui.Chart.feature.byFeature({
+    features: cdf,
+    xProperty: 'dn',
+    yProperties: ['probability']
+  }).setOptions(options);
+  print(cdfChart)  
+}
+
+// Show CDFs
+showCdf(reference, 'Reference Image', 'red')
+showCdf(target, 'Target Image', 'red')
+
+
+// Equalize a given band between two images.  
+var equalize = function(referenceImage, targetImage, band) {
+  var referenceHistData = getHistData(referenceImage, band);
+  var targetHistData = getHistData(targetImage, band);
+  
+  // When you build a classifier, the default mode is to output
+  // discrete class numbers. But you can set the mode to 'REGRESSION'
+  // to have the classifier output continuous values from standard regression
+  
+  // We build 2 classifiers to approximate the CDF of each image
+  // Classifier dnToProb will take the a DN value and predict the cumulative probability
+  // Classifier probToDn will take the cumulative probability and predict the DN value
+  // We train dnToProb on target image and probToDn on reference image
+    
+    var dnToProb = ee.Classifier.smileRandomForest(100)
+      .setOutputMode('REGRESSION')
+      .train({
+        features: targetHistData, 
+        classProperty: 'probability', 
+        inputProperties: ['dn']
+    });
+  
+    var probToDn = ee.Classifier.smileRandomForest(100)
+      .setOutputMode('REGRESSION')
+      .train({
+        features: referenceHistData, 
+        classProperty: 'dn', 
+        inputProperties: ['probability']
+    });
+
+    // Now we can take the target image and get cumulative probability
+    var targetImageProb = targetImage.select(band).rename('dn').classify(dnToProb, 'probability')
+    var targetImageDn = targetImageProb.classify(probToDn, band)
+    return targetImageDn
+};
+
+
+var match = function(referenceImage, targetImage, bandNames) {
+  var matchedBands = bandNames.map(function(band) {
+    return equalize(referenceImage, targetImage, band);
+  })
+  return ee.Image.cat(matchedBands)
+};
+
+var matched = match(reference, target, bandNames)
+showHistogram(matched, 'Matched Image', 'red')
+showCdf(matched, 'Matched Image', 'red')
+
+Map.addLayer(matched, {min:0, max:255}, 'Matched Image')
+
+// Export the matched image
+
+Export.image.toDrive({
+  image: matched.visualize({min:0, max:255}),
+  folder: 'earthengine',
+  fileNamePrefix: 'matched',
+  region: matched.geometry(),
+  scale: 0.05,
+  maxPixels: 1e13})
+  */
+*/

@@ -1,0 +1,11 @@
+var ListServer = ee.List([15,20,25]);
+
+// Use evaluate to transfer server-side dictionary to the client.
+ListServer.evaluate(function(ListClient) {
+  var type2= ListClient;
+/*
+  print('Client-side operations to print all key-value pairs');
+  Object.keys(dictClient).forEach(function(key) {
+    print('    ' + key + ': ' + dictClient[key]);
+  });*/
+});

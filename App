@@ -1,0 +1,461 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var image = ee.Image("users/riddickkakati/EMIRLOGOnew"),
+    water = ee.ImageCollection("GLCF/GLS_WATER");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+function river (image) {
+    var mask = image.mask(image.select('water').eq(2));
+    return mask;
+}
+water = water.map(river);
+//Variables and imports **Enter Imports**
+var Chlorophyll_Landsat_Brahmaputra= require('users/riddickkakati/GEE:AEMS_ALGORITHM_TESTER/Chlorophyll_Algorithms/Result_Chlorophyll_Mapping_Landsat_Brahmaputra');
+//var Chlorophyll_Landsat_Kameng= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Algorithms/Result_Chlorophyll_Mapping_Landsat_Kameng');
+//var Chlorophyll_Landsat_Mahanadi= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Algorithms/Result_Chlorophyll_Mapping_Landsat_Mahanadi');
+//var Chlorophyll_Landsat_Lower_Ganga= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Algorithms/Result_Chlorophyll_Mapping_Landsat_Lower_Ganga');
+//var Chlorophyll_Landsat_Upper_Ganga= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Algorithms/Result_Chlorophyll_Mapping_Landsat_Upper_Ganga');
+var Chlorophyll_Sentinel_Brahmaputra= require('users/riddickkakati/GEE:AEMS_ALGORITHM_TESTER/Chlorophyll_Algorithms/Result_Chlorophyll_Mapping_Sentinel_Brahmaputra');
+//var Chlorophyll_Sentinel_Kameng= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Algorithms/Result_Chlorophyll_Mapping_Sentinel_Kameng');
+//var Chlorophyll_Sentinel_Mahanadi= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Algorithms/Result_Chlorophyll_Mapping_Sentinel_Mahanadi');
+//var Chlorophyll_Sentinel_Lower_Ganga= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Algorithms/Result_Chlorophyll_Mapping_Sentinel_Lower_Ganga');
+//var Chlorophyll_Sentinel_Upper_Ganga= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Algorithms/Result_Chlorophyll_Mapping_Sentinel_Upper_Ganga');
+var logo = image.visualize({
+    bands:  ['b1', 'b2', 'b3'],
+    min: 0,
+    max: 255
+    });
+    var thumb = ui.Thumbnail({
+    image: logo,
+    params: {
+        dimensions: '630x315',
+        format: 'png'
+        },
+    style: {height: '125px', width: '250px',padding :'0'}
+    });
+var app = {};
+/** Creates the UI panels. */
+app.createPanels = function() {
+  /* The introduction section. */
+  app.logo = {
+    panel: ui.Panel(thumb, 'flow', {width: '260px'})
+  };
+  app.intro = {
+    panel: ui.Panel([
+      ui.Label({
+        value: 'Neer- Onabeel: An aquatic ecology monitoring system',
+        style: {fontWeight: 'bold', fontSize: '24px', margin: '10px 5px'}
+      }),
+      ui.Label('Developed by Riddick Kakati (Research Scholar, 186104029)'),
+      ui.Label('Mentored by Prof. Subashisa Dutta (Civil Department) and Prof. S.K. Dwivedy (Mechanical Department)')
+    ])
+  };
+};
+  /* The collection filter controls. */
+  app.filters = {
+    startDate: ui.Textbox('YYYY-MM-DD', 'YYYY-MM-DD'),
+    endDate: ui.Textbox('YYYY-MM-DD', 'YYYY-MM-DD'),
+    lyzenga0: ui.Textbox('Constant 0'),
+    lyzenga1: ui.Textbox('Constant 1'),
+    lyzenga2: ui.Textbox('Constant 2'),
+    lyzenga3: ui.Textbox('Constant 3'),
+    stumpfslope: ui.Textbox('Slope'),
+    stumpfintercept: ui.Textbox('Intercept'),
+  BrahmaputraLandsat: ui.Button({
+  style: {
+    position: 'bottom-left',
+    padding: '5px'
+  },
+  label: 'Start processing Landsat 8',
+  onClick: function() {
+    Map.clear();
+    Map.style().set('cursor', 'crosshair');
+    Map.addLayer({
+        eeObject: water,
+        name: 'Inland water bodies',
+        visParams: {
+          palette: '#0000FF'
+        }
+      });
+      Map.setControlVisibility({
+          drawingToolsControl:false,
+          mapTypeControl: false
+        });
+    var start = app.filters.startDate.getValue();
+    if (start) start = ee.String(start);
+    var end = app.filters.endDate.getValue();
+    if (end) end = ee.String(end);
+    var panel= ui.Panel({
+    style: {
+      position: 'bottom-center',
+      padding: '5px'
+    }
+  });
+  var title= ui.Label({
+    value: 'Select type of data, then click on any inland water area within map.\nIf after 10 seconds from clicking the map, it can still be zoomed in/out, check input parameters',
+    style: {
+      fontSize: '14px',
+      fontWeight: 'bold',
+      margin: '0px',
+      whiteSpace: 'pre',
+      textAlign: 'center'
+    }
+  });
+  
+  panel.add(title);
+  Map.add(panel);
+  
+  var widget = ui.Select({
+          items: ['Raw images (Level 1, DOS Corrected)', 'Surface reflectance (Level 2)'],
+          onChange: function(name){
+            if (name == 'Raw images (Level 1, DOS Corrected)')
+              Map.onClick(function(coords) {
+                  Map.clear();
+                  var point = ee.Geometry.Point(coords.lon, coords.lat);
+                  Chlorophyll_Landsat_Brahmaputra.Result_Chl_Landsat_Brah(start,end,point,1);
+                });
+            else if (name == 'Surface reflectance (Level 2)')
+              Map.onClick(function(coords) {
+                  Map.clear();
+                  var point = ee.Geometry.Point(coords.lon, coords.lat);
+                  Chlorophyll_Landsat_Brahmaputra.Result_Chl_Landsat_Brah(start,end,point,2);
+                });
+          }
+        });
+        
+        widget.setPlaceholder('Select type of data');
+        Map.add(widget);
+  
+    
+    
+  }
+  }),
+  /*KamengLandsat: ui.Button({
+  style: {
+    position: 'bottom-left',
+    padding: '5px'
+  },
+  label: 'Landsat Kameng',
+  onClick: function() {
+    Map.clear();
+    var start = app.filters.startDate.getValue();
+    if (start) start = ee.String(start);
+    var end = app.filters.endDate.getValue();
+    if (end) end = ee.String(end);
+    Chlorophyll_Landsat_Kameng.Result_Chl_Landsat_Kameng(start,end);
+  }
+  }),
+  MahanadiLandsat: ui.Button({
+  style: {
+    position: 'bottom-left',
+    padding: '5px'
+  },
+  label: 'Landsat Mahanadi',
+  onClick: function() {
+    Map.clear();
+    var start = app.filters.startDate.getValue();
+    if (start) start = ee.String(start);
+    var end = app.filters.endDate.getValue();
+    if (end) end = ee.String(end);
+    Chlorophyll_Landsat_Mahanadi.Result_Chl_Landsat_Mahanadi(start,end);
+  }
+  }),
+  LowerGangaLandsat: ui.Button({
+  style: {
+    position: 'bottom-left',
+    padding: '5px'
+  },
+  label: 'Landsat Lower Ganga',
+  onClick: function() {
+    Map.clear();
+    var start = app.filters.startDate.getValue();
+    if (start) start = ee.String(start);
+    var end = app.filters.endDate.getValue();
+    if (end) end = ee.String(end);
+    Chlorophyll_Landsat_Lower_Ganga.Result_Chl_Landsat_LowGang(start,end);
+  }
+  }),
+  UpperGangaLandsat: ui.Button({
+  style: {
+    position: 'bottom-left',
+    padding: '5px'
+  },
+  label: 'Landsat Upper Ganga',
+  onClick: function() {
+    Map.clear();
+    var start = app.filters.startDate.getValue();
+    if (start) start = ee.String(start);
+    var end = app.filters.endDate.getValue();
+    if (end) end = ee.String(end);
+    Chlorophyll_Landsat_Upper_Ganga.Result_Chl_Landsat_UpGang(start,end);
+  }
+  }),*/
+  BrahmaputraSentinel: ui.Button({
+  style: {
+    position: 'bottom-left',
+    padding: '5px'
+  },
+  label: 'Start processing Sentinel 2A',
+  onClick: function() {
+    Map.clear();
+    Map.style().set('cursor', 'crosshair');
+    Map.addLayer({
+        eeObject: water,
+        name: 'Inland water bodies',
+        visParams: {
+          palette: '#0000FF'
+        }
+      });
+      Map.setControlVisibility({
+          drawingToolsControl:false,
+          mapTypeControl: false
+        });
+    var start = app.filters.startDate.getValue();
+    if (start) start = ee.String(start);
+    var end = app.filters.endDate.getValue();
+    if (end) end = ee.String(end);
+    
+    var L0 = app.filters.lyzenga0.getValue();
+    if (L0) L0 = ee.Number.parse(L0);
+    else L0 = ee.Number(-13.687002050059291);
+    
+    var L1 = app.filters.lyzenga1.getValue();
+    if (L1) L1 = ee.Number.parse(L1);
+    else L1 = ee.Number(-8.914220077840353);
+
+    
+    var L2 = app.filters.lyzenga2.getValue();
+    if (L2) L2 = ee.Number.parse(L2);
+    else L2 = ee.Number(9.653481498210157);
+    
+    var L3 = app.filters.lyzenga3.getValue();
+    if (L3) L3 = ee.Number.parse(L3);
+    else L3 = ee.Number(0.8833480975761989);
+    
+    var S1 = app.filters.stumpfslope.getValue();
+    if (S1) S1 = ee.Number.parse(S1);
+    else S1 = ee.Number(-82.0828551996246);
+    
+    var S2 = app.filters.stumpfintercept.getValue();
+    if (S2) S2 = ee.Number.parse(S2);
+    else S2 = ee.Number(78.62538846929438);
+    
+    var panel= ui.Panel({
+    style: {
+      position: 'bottom-center',
+      padding: '5px'
+    }
+  });
+  var title= ui.Label({
+    value: 'Select type of data, then click on any inland water area within map.\nIf after 10 seconds from clicking the map, it can still be zoomed in/out, check input parameters',
+    style: {
+      fontSize: '14px',
+      fontWeight: 'bold',
+      margin: '0px',
+      whiteSpace: 'pre',
+      textAlign: 'center'
+    }
+  });
+  
+  panel.add(title);
+  Map.add(panel);
+  
+  var widget = ui.Select({
+          items: ['Raw images (Level 1, DOS Corrected)', 'Surface reflectance (Level 2)'],
+          onChange: function(name){
+            if (name == 'Raw images (Level 1, DOS Corrected)')
+              Map.onClick(function(coords) {
+                  Map.clear();
+                  var point = ee.Geometry.Point(coords.lon, coords.lat);
+                  Chlorophyll_Sentinel_Brahmaputra.Result_Chl_Sentinel_Brah(start,end,point,L0,L1,L2,L3,S1,S2,1);
+                });
+            else if (name == 'Surface reflectance (Level 2)')
+              Map.onClick(function(coords) {
+                  Map.clear();
+                  var point = ee.Geometry.Point(coords.lon, coords.lat);
+                  Chlorophyll_Sentinel_Brahmaputra.Result_Chl_Sentinel_Brah(start,end,point,L0,L1,L2,L3,S1,S2,2);
+                });
+          }
+        });
+        
+        widget.setPlaceholder('Select type of data');
+        Map.add(widget);
+  }
+  })
+  /*KamengSentinel: ui.Button({
+  style: {
+    position: 'bottom-left',
+    padding: '5px'
+  },
+  label: 'Sentinel Kameng',
+  onClick: function() {
+    Map.clear();
+    var start = app.filters.startDate.getValue();
+    if (start) start = ee.String(start);
+    var end = app.filters.endDate.getValue();
+    if (end) end = ee.String(end);
+    Chlorophyll_Sentinel_Kameng.Result_Chl_Sentinel_Kameng(start,end);
+  }
+  }),
+  MahanadiSentinel: ui.Button({
+  style: {
+    position: 'bottom-left',
+    padding: '5px'
+  },
+  label: 'Sentinel Mahanadi',
+  onClick: function() {
+    Map.clear();
+    var start = app.filters.startDate.getValue();
+    if (start) start = ee.String(start);
+    var end = app.filters.endDate.getValue();
+    if (end) end = ee.String(end);
+    Chlorophyll_Sentinel_Mahanadi.Result_Chl_Sentinel_Mahanadi(start,end);
+  }
+  }),
+  LowerGangaSentinel: ui.Button({
+  style: {
+    position: 'bottom-left',
+    padding: '5px'
+  },
+  label: 'Sentinel Lower Ganga',
+  onClick: function() {
+    Map.clear();
+    var start = app.filters.startDate.getValue();
+    if (start) start = ee.String(start);
+    var end = app.filters.endDate.getValue();
+    if (end) end = ee.String(end);
+    Chlorophyll_Sentinel_Lower_Ganga.Result_Chl_Sentinel_LowGang(start,end);
+  }
+  }),
+  UpperGangaSentinel: ui.Button({
+  style: {
+    position: 'bottom-left',
+    padding: '5px'
+  },
+  label: 'Sentinel Upper Ganga',
+  onClick: function() {
+    Map.clear();
+    var start = app.filters.startDate.getValue();
+    if (start) start = ee.String(start);
+    var end = app.filters.endDate.getValue();
+    if (end) end = ee.String(end);
+    Chlorophyll_Sentinel_Upper_Ganga.Result_Chl_Sentinel_UpGang(start,end);
+  }
+  })*/
+  };
+
+  /* The panel for the filter control widgets. */
+  app.filters.panel = ui.Panel({
+    widgets: [
+      ui.Label('Enter start and end date:', {fontWeight: 'bold'}),
+      ui.Label('End date should not be more than 30 days from start date'),
+      ui.Label('Start date', app.HELPER_TEXT_STYLE), app.filters.startDate,
+      ui.Label('End date', app.HELPER_TEXT_STYLE), app.filters.endDate,
+      ui.Label('Select satellite and other parameters:', {fontWeight: 'bold'}),
+      /*ui.Panel([
+        app.filters.KamengLandsat,
+      ], ui.Panel.Layout.flow('horizontal')),
+      ui.Panel([
+        app.filters.MahanadiLandsat,
+      ], ui.Panel.Layout.flow('horizontal')),
+      ui.Panel([
+        app.filters.LowerGangaLandsat,
+      ], ui.Panel.Layout.flow('horizontal')),
+      ui.Panel([
+        app.filters.UpperGangaLandsat,
+      ], ui.Panel.Layout.flow('horizontal')),*/
+      ui.Label('If using Sentinel imagery, enter depth coefficients (optional): Defaults to Belize coefficients if not entered',{fontWeight:'bold'}),
+      ui.Label({value: 'Lyzenga (1985) coefficients', style: {fontWeight: 'bold'}, targetUrl: 'https://www.tandfonline.com/doi/abs/10.1080/01431168508948428'}),
+      app.filters.lyzenga0,
+      app.filters.lyzenga1,
+      app.filters.lyzenga2,
+      app.filters.lyzenga3,
+      /*ui.Label({value: 'b. Stumpf (2003) method:', style: {fontWeight: 'bold'}, targetUrl: 'https://aslopubs.onlinelibrary.wiley.com/doi/abs/10.4319/lo.2003.48.1_part_2.0547'}),
+      app.filters.stumpfslope,
+      app.filters.stumpfintercept,*/
+      ui.Panel([
+        app.filters.BrahmaputraSentinel,
+      ], ui.Panel.Layout.flow('horizontal')),
+      ui.Panel([
+        app.filters.BrahmaputraLandsat,
+      ], ui.Panel.Layout.flow('horizontal')),
+      /*ui.Panel([
+        app.filters.KamengSentinel,
+      ], ui.Panel.Layout.flow('horizontal')),
+       ui.Panel([
+        app.filters.MahanadiSentinel,
+      ], ui.Panel.Layout.flow('horizontal')),
+      ui.Panel([
+        app.filters.LowerGangaSentinel,
+      ], ui.Panel.Layout.flow('horizontal')),
+      ui.Panel([
+        app.filters.UpperGangaSentinel,
+      ], ui.Panel.Layout.flow('horizontal'))*/
+      
+    ],
+    style: app.SECTION_STYLE
+  });
+
+/** Creates the app helper functions. */
+app.createHelpers = function() {
+  /**
+   * Enables or disables loading mode.
+   * @param {boolean} enabled Whether loading mode is enabled.
+   */
+  app.setLoadingMode = function(enabled) {
+    // Set the loading label visibility to the enabled mode.
+    app.filters.loadingLabel.style().set('shown', enabled);
+    // Set each of the widgets to the given enabled mode.
+    var loadDependentWidgets = [
+      app.filters.startDate,
+      app.filters.endDate,
+      app.filters.BrahmaputraLandsat,
+      app.filters.lyzenga0,
+      app.filters.lyzenga1,
+      app.filters.lyzenga2,
+      app.filters.lyzenga3,
+      /*app.filters.stumpfslope,
+      app.filters.stumpfintercept,*/
+      //app.filters.KamengLandsat,
+      //app.filters.MahanadiLandsat,
+      //app.filters.LowerGangaLandsat,
+      //app.filters.UpperGangaLandsat,
+      app.filters.BrahmaputraSentinel,
+      //app.filters.KamengSentinel,
+      //app.filters.MahanadiSentinel,
+      //app.filters.LowerGangaSentinel,
+      //app.filters.UpperGangaSentinel
+    ];
+    loadDependentWidgets.forEach(function(widget) {
+      widget.setDisabled(enabled);
+    });
+  };
+};
+
+
+/** Creates the application interface. */
+app.boot = function() {
+  Map.clear();
+  Map.addLayer({
+    eeObject: water,
+    name: 'Inland water bodies',
+    visParams: {
+      palette: '#0000FF'
+    }
+  });
+  app.createHelpers();
+  app.createPanels();
+  var main = ui.Panel({
+    widgets: [
+      app.logo.panel,
+      app.intro.panel,
+      app.filters.panel,
+    ],
+    style: {width: '320px', padding: '8px'}
+  });
+  Map.setCenter(79.0882, 22.2458,4.49);
+  ui.root.insert(0, main);
+  Map.setControlVisibility({drawingToolsControl: false,
+    mapTypeControl: false
+  });
+};
+
+app.boot();

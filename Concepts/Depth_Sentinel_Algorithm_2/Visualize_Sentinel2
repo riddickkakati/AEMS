@@ -1,0 +1,42 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var POI = /* color: #d63000 */ee.Geometry.Point([91.9690889230402, 26.286505709301952]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+
+// Script to create median composite of Sentinel 2 data from images less than a threshold
+/* 
+
+Requirements (Imports needed above)
+  'POI'            = Point of interest
+
+Parameters:                                         Defaults
+  'START_DATE'      = yyyy-mm-dd                     2020-01-01
+  'END_DATE'        = yyyy-mm-dd                     2020-12-01
+  'CLOUD_THRES'      = threshold to mask clouds      40 (Sentinel scenes with larger than 40%
+                                                         cloud will not be included in median)
+*/
+var START_DATE = '2020-01-01';
+var END_DATE = '2020-12-01';
+var CLOUD_THRES = 40
+
+//  ------------------------------------------------------------------   //
+
+// Create Sentinel 2 composite //
+
+// Load Sentinel 2 raw imagery and filter it to all images in 2020.
+var S2data = ee.ImageCollection('COPERNICUS/S2_SR')
+    .filterDate(ee.Date(START_DATE), ee.Date(END_DATE))
+    .filterBounds(POI)
+    .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', CLOUD_THRES))
+
+print(S2data)
+
+// Print the number of imaege in the collection
+print('Number of Sentinel 2 images in median', S2data.size())
+
+// Take median
+var S2composite = S2data.median()
+
+// Display the result.
+Map.centerObject(POI, 12);
+var visParams = {min: 0, max: 3000, bands: ['B4', 'B3', 'B2']};
+Map.addLayer(S2composite, visParams, 'Sentinel 2 2020 composite');

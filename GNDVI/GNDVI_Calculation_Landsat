@@ -1,0 +1,72 @@
+exports.GNDVI_Landsat= function(imageCollection){
+  /*var MNDWICalculator= function(image){
+    var green= image.select(1);
+    var SWIR1= image.select(4);
+    var NIR= image.select(3);
+    var red= image.select(2);
+    var blue= image.select(0);
+    var MNDWIimage= green.expression('(green-swir1)/(green+swir1)',{
+      green: green,
+      swir1: SWIR1
+    });
+    var NDVIimage= NIR.expression('(NIR-red)/(NIR+red)',{
+      NIR: NIR,
+      red: red
+    });
+    var EVIimage = NIR.expression('2.5 * (NIR - red) / (1 + NIR + 6 * red - 7.5 * blue)', {
+     NIR: NIR,
+     red: red,
+     blue: blue
+    });
+    var water = (MNDWIimage.gt(NDVIimage).or(MNDWIimage.gt(EVIimage))).and(EVIimage.lt(0.1));
+    var waterMasked = water.updateMask(water.gt(0));
+    return image.mask(waterMasked);
+  };
+  */
+  var GNDVIcalc= function(image){
+    var NIR= image.select(3);
+    var green= image.select(1);
+    var NIRsubgreen= NIR.subtract(green);
+    var NIRaddgreen= NIR.add(green);
+    return NIRsubgreen.divide(NIRaddgreen);
+  };
+  /*
+  var MNDWI= imageCollection.map(MNDWICalculator);
+  var MNDWIextract= MNDWI.select('B[2-8]');
+  print('MNDWI Images',MNDWIextract);*/
+  var GNDVI= imageCollection.map(GNDVIcalc).select(['B5'],['GreenVegetationindex']);
+  //print(GNDVI,'NDVI');
+
+return ee.Feature(null,{
+  GreenVegetationindex: GNDVI
+});
+};
+  //Map.addLayer(MNDWI.first().select([0,1,2]),imageVisParam);
+  /*
+  //Coordinates of survey on March 2 2021
+  var point1 = ee.Geometry.Point([92.04111111, 26.24916667]);
+  var point2 = ee.Geometry.Point([92.01277778, 26.27944444]);//No chlorophyll
+  var point3 = ee.Geometry.Point([92.04083333, 26.24888889]);
+  var point4 = ee.Geometry.Point([92.01833333, 26.28861111]);
+  var point5 = ee.Geometry.Point([92.01277778, 26.27944444]);
+  
+  Map.addLayer({
+    eeObject: point1,
+    name: '92.04111111, 26.24916667'
+  });
+  Map.addLayer({
+    eeObject: point2,
+    name: '92.01277778, 26.27944444 (No Chlorophyll)'
+  });
+  Map.addLayer({
+    eeObject: point3,
+    name: '92.04083333, 26.24888889'
+  });
+  Map.addLayer({
+    eeObject: point4,
+    name: '92.01833333, 26.28861111'
+  });
+  Map.addLayer({
+    eeObject: point5,
+    name: '92.01277778, 26.27944444'
+  });*/

@@ -1,0 +1,23 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var imageCollection = ee.ImageCollection("COPERNICUS/S2_SR"),
+    geometry = /* color: #98ff00 */ee.Geometry.Point([91.91849941994282, 26.264446470500364]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+var image= imageCollection.filterBounds(geometry).filterDate('2021-12-10','2021-12-20');
+var image2= image.first();
+print(image2);
+var MNDWICalculator= function(image){
+    var green= image.select(2);
+    var SWIR1= image.select(11);
+    var MNDWIimage= green.expression('(green-swir1)/(green+swir1)',{
+      green: green,
+      swir1: SWIR1
+    });
+    return image.mask(MNDWIimage).unitScale(0,1);
+  };
+var imexport= MNDWICalculator(image2);
+Map.addLayer(imexport);
+Export.image.toDrive({
+  image: imexport,
+  description: 'imageToDriveExample',
+  scale: 10
+});

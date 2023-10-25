@@ -1,0 +1,18 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var imageCollection = ee.ImageCollection("COPERNICUS/S2");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+var image= imageCollection.filterDate('2021-07-01','2021-08-01').first();
+print(image);
+var timeStamp = ee.Date(image.get('system:time_start')).format().slice(5,7);
+timeStamp= ee.Number(timeStamp).getInfo();
+print(timeStamp);
+if (timeStamp<6)
+{
+  timeStamp=12-timeStamp;
+}
+else
+{
+  timeStamp=timeStamp*1;
+}
+print(timeStamp);
+

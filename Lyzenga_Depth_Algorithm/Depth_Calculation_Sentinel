@@ -1,0 +1,49 @@
+exports.Depth_Sentinel= function(imageCollection,lyzenga0,lyzenga1,lyzenga2,lyzenga3){
+ var MNDWICalculator= function(image){
+    var green= image.select(1);
+    var SWIR1= image.select(4);
+    var NIR= image.select(3);
+    var red= image.select(2);
+    var blue= image.select(0);
+    var MNDWIimage= green.expression('(green-swir1)/(green+swir1)',{
+      green: green,
+      swir1: SWIR1
+    });
+    var NDVIimage= NIR.expression('(NIR-red)/(NIR+red)',{
+      NIR: NIR,
+      red: red
+    });
+    var EVIimage = NIR.expression('2.5 * (NIR - red) / (1 + NIR + 6 * red - 7.5 * blue)', {
+     NIR: NIR,
+     red: red,
+     blue: blue
+    });
+    var water = (MNDWIimage.gt(NDVIimage).or(MNDWIimage.gt(EVIimage))).and(EVIimage.lt(0.1));
+    var waterMasked = water.updateMask(water.gt(0));
+    return image.mask(waterMasked);
+  };
+  
+  var Depthcalc= function(image){
+  
+  var logBands = image.select(['B2', 'B3', 'B4'],['blue', 'green', 'red']).log();
+  var linearSDB = ((logBands.select(['blue']).multiply(ee.Number(lyzenga1)))
+                      .add((logBands.select(['green']).multiply(ee.Number(lyzenga2))))
+                      .add((logBands.select(['red']).multiply(ee.Number(lyzenga3))))
+                      .subtract(ee.Number(lyzenga0)));//.divide(ee.Number(15));
+    
+    var SMOOTHING_RADIUS = 0;
+    var filtered = linearSDB;//.focal_mean(SMOOTHING_RADIUS, 'circle', 'meters');
+  
+    return filtered;
+  };
+  
+  var MNDWI= imageCollection.map(MNDWICalculator);
+  var MNDWIextract= MNDWI.select('B[1-9]');
+  print('MNDWI Images',MNDWIextract);
+  var Depth= MNDWI.map(Depthcalc).select(['blue'],['LyzengaDepth']);
+  
+return ee.Feature(null,{
+  MNDWIimage: MNDWIextract,
+  LyzengaDepth: Depth
+});
+};

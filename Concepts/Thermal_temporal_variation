@@ -1,0 +1,155 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var roi = /* color: #98ff00 */ee.Geometry.Polygon(
+        [[[92.8585470259031, 26.872466000710624],
+          [92.86129360793436, 26.85286436661848],
+          [92.8640401899656, 26.83264662485428],
+          [92.87296658156717, 26.814876538674444],
+          [92.87227993605936, 26.796490758940628],
+          [92.87227993605936, 26.77319782646012],
+          [92.86129360793436, 26.76400193219748],
+          [92.85442715285623, 26.738862690092905],
+          [92.84859066603983, 26.722917851510463],
+          [92.8527105390867, 26.714331243704653],
+          [92.86211371109462, 26.692784784970904],
+          [92.86486029312587, 26.6633345031195],
+          [92.86710288852497, 26.62711704782475],
+          [92.8904488357906, 26.63571022444302],
+          [92.88358238071247, 26.656576676494204],
+          [92.87259605258747, 26.69829813608513],
+          [92.87259605258747, 26.740004322550284],
+          [92.8849556717281, 26.764530232256128],
+          [92.89182212680622, 26.79395433568645],
+          [92.88083579868122, 26.804986407939097],
+          [92.87637260288044, 26.820919728799456],
+          [92.87293937534137, 26.837157154728732],
+          [92.86710288852497, 26.853392252794137],
+          [92.86584398327246, 26.87771606369212]]]),
+    roi3 = ee.FeatureCollection("users/riddickkakati/Kamengsejosa");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+
+// Made up ROI
+
+Map.addLayer(roi)
+Map.centerObject(roi, 12)
+
+// Import the Landsat 8 TOA image collection.
+var l8 = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
+              .filterDate('2011-01-01','2022-12-01')
+              .filterBounds(roi).filterMetadata('CLOUD_COVER','less_than',7);
+
+var withtemp= l8.map(function(img) {
+  var green= img.select('SR_B3');
+  var SWIR1= img.select('SR_B6');
+  var NIR= img.select('SR_B5');
+  var red= img.select('SR_B4');
+  var blue= img.select('SR_B2');
+  var MNDWIimage= green.expression('(green-swir1)/(green+swir1)',{
+    green: green,
+    swir1: SWIR1
+  });
+  var NDVIimage= NIR.expression('(NIR-red)/(NIR+red)',{
+    NIR: NIR,
+    red: red
+  });
+  var EVIimage = NIR.expression('2.5 * (NIR - red) / (1 + NIR + 6 * red - 7.5 * blue)', {
+   NIR: NIR,
+   red: red,
+   blue: blue
+  });
+  var water = (MNDWIimage.lt(NDVIimage).or(MNDWIimage.lt(EVIimage))).and(EVIimage.gt(0.1));
+  var waterMasked = water.updateMask(water.gt(0));
+  var Mult= ee.Number(img.get('TEMPERATURE_MULT_BAND_ST_B10'));
+  var Add= ee.Number(img.get('TEMPERATURE_ADD_BAND_ST_B10'));
+  var Mult= ee.Number(img.get('TEMPERATURE_MULT_BAND_ST_B10'));
+  var Add= ee.Number(img.get('TEMPERATURE_ADD_BAND_ST_B10'));
+  var radiance = img.select(8).multiply(Mult).add(Add);
+  return img.addBands(radiance.subtract(ee.Number(273))).mask(waterMasked);
+});
+
+
+print(withtemp.first())
+/*
+// Create a chart.
+var chart = ui.Chart.image.series({
+  imageCollection: withEVI.select('EVI'),
+  region: roi,
+  reducer: ee.Reducer.mean(),
+  scale: 30
+}).setOptions({title: 'EVI over time'});
+*/
+
+var withouttemp= l8.map(function(img) {
+  var green= img.select('SR_B3');
+  var SWIR1= img.select('SR_B6');
+  var NIR= img.select('SR_B5');
+  var red= img.select('SR_B4');
+  var blue= img.select('SR_B2');
+  var MNDWIimage= green.expression('(green-swir1)/(green+swir1)',{
+    green: green,
+    swir1: SWIR1
+  });
+  var NDVIimage= NIR.expression('(NIR-red)/(NIR+red)',{
+    NIR: NIR,
+    red: red
+  });
+  var EVIimage = NIR.expression('2.5 * (NIR - red) / (1 + NIR + 6 * red - 7.5 * blue)', {
+   NIR: NIR,
+   red: red,
+   blue: blue
+  });
+  var water = (MNDWIimage.lt(NDVIimage).or(MNDWIimage.lt(EVIimage))).and(EVIimage.gt(0.1));
+  var waterMasked = water.updateMask(water.gt(0));
+  var qaMask = img.select('QA_PIXEL').eq(21824);
+  var Mult= ee.Number(img.get('TEMPERATURE_MULT_BAND_ST_B10'));
+  var Add= ee.Number(img.get('TEMPERATURE_ADD_BAND_ST_B10'));
+  var Mult= ee.Number(img.get('TEMPERATURE_MULT_BAND_ST_B10'));
+  var Add= ee.Number(img.get('TEMPERATURE_ADD_BAND_ST_B10'));
+  var radiance = img.multiply(Mult).add(Add);
+  return img.addBands(radiance.subtract(ee.Number(273))).updateMask(qaMask).mask(waterMasked);
+});
+
+Map.addLayer(withouttemp);
+
+var clip= withouttemp.map(function(image) {
+  return image.clip(roi);
+});
+
+clip = clip.map(function(image){
+  return image.set('timeFormat', image.date().format('dd-MM-yyyy'));
+});
+
+Map.addLayer(clip.mean())
+
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('ST_B10_1'),
+  region: roi,
+  reducer: ee.Reducer.mean(),
+  scale: 30,
+  xProperty: 'timeFormat'
+}).setOptions({title: 'Mean Cloud-masked temperature over time'}));
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('ST_B10_1'),
+  region: roi,
+  reducer: ee.Reducer.min(),
+  scale: 30,
+  xProperty: 'timeFormat'
+}).setOptions({title: 'Min Cloud-masked temperature over time'}));
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('ST_B10_1'),
+  region: roi,
+  reducer: ee.Reducer.max(),
+  scale: 30,
+  xProperty: 'timeFormat'
+}).setOptions({title: 'Max Cloud-masked temperature over time'}));
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('ST_B10_1'),
+  region: roi,
+  reducer: ee.Reducer.stdDev(),
+  scale: 30,
+  xProperty: 'timeFormat'
+}).setOptions({title: 'Std.Dev Cloud-masked temperature over time'}));
+

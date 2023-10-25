@@ -1,0 +1,53 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var roi = ee.FeatureCollection("users/riddickkakati/NDVIAnalysisClipBounds");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+ 
+
+// Made up ROI
+
+Map.addLayer(roi)
+Map.centerObject(roi, 12)
+
+// Import the Landsat 8 TOA image collection.
+var l8 = ee.ImageCollection("LANDSAT/LC08/C01/T1_8DAY_EVI") 
+              .filterDate('2016-10-01','2022-12-01')
+              .filterBounds(roi)
+
+var watermasked= l8.map(function(image) {
+  var mask=image.gte(ee.Image(0));
+  return image.updateMask(mask);
+});
+
+var clip= watermasked.map(function(image) {
+  return image.clip(roi);
+});
+Map.addLayer(clip.mean())
+
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('EVI'),
+  region: roi,
+  reducer: ee.Reducer.mean(),
+  scale: 30
+}).setOptions({title: 'Mean Cloud-masked EVI over time'}));
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('EVI'),
+  region: roi,
+  reducer: ee.Reducer.min(),
+  scale: 30
+}).setOptions({title: 'Min Cloud-masked EVI over time'}));
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('EVI'),
+  region: roi,
+  reducer: ee.Reducer.max(),
+  scale: 30
+}).setOptions({title: 'Max Cloud-masked EVI over time'}));
+
+print(ui.Chart.image.series({
+  imageCollection: clip.select('EVI'),
+  region: roi,
+  reducer: ee.Reducer.stdDev(),
+  scale: 30
+}).setOptions({title: 'Std.Dev Cloud-masked EVI over time'}));

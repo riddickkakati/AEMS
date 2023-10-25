@@ -1,0 +1,141 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var POI = /* color: #98ff00 */ee.Geometry.Point([-88.12034149169924, 17.708147451042837]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+// Demonstrates before/after imagery comparison with a variety of dates.
+/* 
+
+Requirements (Imports needed above)
+  'POI'            = Point of interest (Create using point too below and rename 'POI')
+
+Parameters:                                                   Defaults
+  'start_date'            = yyyy-mm-dd                          2020-01-01
+  'end_date'              = yyyy-mm-dd                          2020-12-01
+  'MAX_CLOUD_PROBABILITY' = threshold to mask clouds            8 (8% cloud probability
+  
+*/
+
+var START_DATE = '2020-01-01';
+var END_DATE = '2020-12-01';
+var MAX_CLOUD_PROBABILITY = 8;
+var CLOUD_THRES = 40
+
+//  ------------------------------------------------------------------   //
+/*
+    Configure Imagery:
+    1. MEDIAN COMPOSITE - NO MASK
+*/
+
+// Script to create median composite of Sentinel 2 data in Belize
+
+// Load Sentinel 2 raw imagery and filter it to all images in 2020.
+var S2data = ee.ImageCollection('COPERNICUS/S2_SR')
+    .filterDate(START_DATE, END_DATE)
+    .filterBounds(POI)
+    .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', CLOUD_THRES))
+
+// Print the number of imaege in the collection
+print('Number of Sentinel 2 images in median', S2data.size())
+
+// Take median
+var S2composite = S2data.median()
+
+//  ------------------------------------------------------------------   //
+/*
+    Configure Imagery:
+     2. MEDIAN COMPOSITE - MASKED
+*/
+
+// Script to create smooth median composite of Sentinel 2 data in Belize
+
+var s2Sr = ee.ImageCollection('COPERNICUS/S2_SR');
+var s2Clouds = ee.ImageCollection('COPERNICUS/S2_CLOUD_PROBABILITY');
+
+function maskClouds(img) {
+  var clouds = ee.Image(img.get('cloud_mask')).select('probability');
+  var isNotCloud = clouds.lt(MAX_CLOUD_PROBABILITY);
+  return img.updateMask(isNotCloud);
+}
+
+// Filter input collections by desired data range and region.
+var criteria = ee.Filter.and(
+    ee.Filter.bounds(POI), ee.Filter.date(ee.Date(START_DATE), ee.Date(END_DATE)));
+s2Sr = s2Sr.filter(criteria);
+s2Clouds = s2Clouds.filter(criteria);
+
+// Join S2 SR with cloud probability dataset to add cloud mask.
+var s2SrWithCloudMask = ee.Join.saveFirst('cloud_mask').apply({
+  primary: s2Sr,
+  secondary: s2Clouds,
+  condition:
+      ee.Filter.equals({leftField: 'system:index', rightField: 'system:index'})
+});
+
+// Apply cloud mask across image collection
+var S2data_smooth = ee.ImageCollection(s2SrWithCloudMask).map(maskClouds)
+
+// Print number of satellite  images in median
+print('Number of Sentinel 2 images in masked median', S2data_smooth.size())
+
+// Take median from image collection
+var S2composite_smooth = S2data_smooth.median();
+
+//  ------------------------------------------------------------------   //
+
+// * Set up the maps and control widgets //
+
+// make left and right maps
+var leftMap = ui.Map();
+var rightMap = ui.Map();
+
+// make left and right data layers
+var leftImg = S2composite;
+var rightImg = S2composite_smooth;
+
+// define style
+var style = {min: 0, max: 3000, bands: ['B4', 'B3', 'B2']};
+
+// add layers to maps
+leftMap.addLayer(leftImg, style, 'Sentinel-2: No Mask');
+rightMap.addLayer(rightImg, style,  'Sentinel-2: Masked');
+
+// add panels
+var verticalFlow = ui.Panel.Layout.flow('vertical');
+
+var leftInfoPanel = ui.Panel({ 
+  layout: verticalFlow, //ui.Panel.Layout.flow('vertical'),
+  style: {position: 'top-left'}});
+
+leftMap.add(leftInfoPanel);
+
+var rightInfoPanel = ui.Panel({ 
+  layout: verticalFlow, //ui.Panel.Layout.flow('vertical'),
+  style: {position: 'top-right'}});
+
+rightMap.add(rightInfoPanel);
+
+// Add labels
+var s2smooth_label = ui.Label('Sentinel-2: No Mask')
+s2smooth_label.style().set('position', 'bottom-left')
+var s2_label = ui.Label('Sentinel-2: Masked')
+s2_label.style().set('position', 'bottom-right')
+
+leftMap.add(s2smooth_label)
+rightMap.add(s2_label)
+
+// link the maps
+var linkedMaps = ui.Map.Linker([leftMap, rightMap]);
+
+// Create a SplitPanel which holds the linked maps side-by-side.
+var splitPanel = ui.SplitPanel({
+  firstPanel: leftMap,
+  secondPanel: rightMap,
+  orientation: 'horizontal',
+  wipe: true,
+  style: {stretch: 'both'}
+});
+
+// clear the root and add the splitPanel
+ui.root.clear();
+ui.root.add(splitPanel);
+
+leftMap.setCenter(-88.15467, 17.77535, 13);

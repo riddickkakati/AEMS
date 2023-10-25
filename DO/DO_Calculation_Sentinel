@@ -1,0 +1,49 @@
+exports.DO_Sentinel= function(imageCollection){
+ var MNDWICalculator= function(image){
+    var green= image.select(1);
+    var SWIR1= image.select(4);
+    var NIR= image.select(3);
+    var red= image.select(2);
+    var blue= image.select(0);
+    var MNDWIimage= green.expression('(green-swir1)/(green+swir1)',{
+      green: green,
+      swir1: SWIR1
+    });
+    var NDVIimage= NIR.expression('(NIR-red)/(NIR+red)',{
+      NIR: NIR,
+      red: red
+    });
+    var EVIimage = NIR.expression('2.5 * (NIR - red) / (1 + NIR + 6 * red - 7.5 * blue)', {
+     NIR: NIR,
+     red: red,
+     blue: blue
+    });
+    var water = (MNDWIimage.gt(NDVIimage).or(MNDWIimage.gt(EVIimage))).and(EVIimage.lt(0.1));
+    var waterMasked = water.updateMask(water.gt(0));
+    return image.mask(waterMasked);
+  };
+  
+  var DOcalc= function(image){
+    var rededge1= image.select(3);
+    var narrowNIR= image.select(7);
+    var red= image.select(2);
+    var rededge3= image.select(5);
+    var NIR= image.select(6);
+    var NIRsubred= NIR.subtract(red);
+    var NIRaddred= NIR.add(red);
+    var fraction1= rededge1.divide(red.add(narrowNIR));
+    var fraction2= red.divide(rededge3.subtract(NIR));
+    var constant= ee.Image.constant(1.687);
+    var DO= ((constant).add(fraction1.multiply(ee.Number(13.65)))).subtract(fraction2.multiply(ee.Number(0.3714)));
+    return DO;
+  };
+  var MNDWI= imageCollection.map(MNDWICalculator);
+  var MNDWIextract= MNDWI.select('B[1-9]');
+  print('MNDWI Images',MNDWIextract);
+  var DO= MNDWI.map(DOcalc).select(['constant'],['Dissolvedoxygen']);
+  //print(DO,'DO');
+
+return ee.Feature(null,{
+  Dissolvedoxygen: DO
+});
+};

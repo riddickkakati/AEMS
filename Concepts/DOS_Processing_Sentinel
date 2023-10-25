@@ -1,0 +1,9 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var S2 = ee.ImageCollection("COPERNICUS/S2"),
+    Ganeshpahar = /* color: #98ff00 */ee.Geometry.Point([91.9716, 26.2839]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+var atmprocess= require('users/riddickkakati/GEE:AEMS_ALGORITHM_TESTER/Sentinel_Atmospheric_Corrections/Sentinel_Surface_Reflectance_DOS_from_Reflectance_GISAGMAPS_METHOD');
+var startdate= ee.String('2021-01-01');//startdate,enddate: Time Period of Study
+var enddate= ee.String('2021-05-01');
+var cloudcover= ee.Number(20);//Maximum Cloud Cover
+var Reflectance= atmprocess.Sentinel_SR_DOS_GISMAPS(S2,Ganeshpahar,startdate,enddate,cloudcover);

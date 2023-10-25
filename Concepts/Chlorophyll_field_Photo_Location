@@ -1,0 +1,18 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var Ganeshpahar = 
+    /* color: #ff0909 */
+    /* locked: true */
+    ee.Geometry.Point([92.001, 26.273]),
+    table = ee.FeatureCollection("users/riddickkakati/India-Shape"),
+    Ganeshpahar2 = 
+    /* color: #ffc82d */
+    /* locked: true */
+    ee.Geometry.Point([91.578, 26.163]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+Map.addLayer(table.filterBounds(Ganeshpahar));
+Map.addLayer(Ganeshpahar);
+Map.addLayer(Ganeshpahar2);
+var baseChange = [{featureType: 'all', stylers: [{invert_lightness: true},
+{visibility: 'off'}]}];
+
+Map.setOptions('baseChange', {'baseChange': baseChange});

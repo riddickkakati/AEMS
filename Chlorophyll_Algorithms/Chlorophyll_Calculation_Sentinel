@@ -1,0 +1,67 @@
+exports.Chlorophyll_Sentinel= function(imageCollection){
+  var MNDWICalculator= function(image){
+    var green= image.select(1);
+    var SWIR1= image.select(4);
+    var NIR= image.select(3);
+    var red= image.select(2);
+    var blue= image.select(0);
+    var MNDWIimage= green.expression('(green-swir1)/(green+swir1)',{
+      green: green,
+      swir1: SWIR1
+    });
+    var NDVIimage= NIR.expression('(NIR-red)/(NIR+red)',{
+      NIR: NIR,
+      red: red
+    });
+    var EVIimage = NIR.expression('2.5 * (NIR - red) / (1 + NIR + 6 * red - 7.5 * blue)', {
+     NIR: NIR,
+     red: red,
+     blue: blue
+    });
+    var water = (MNDWIimage.gt(NDVIimage).or(MNDWIimage.gt(EVIimage))).and(EVIimage.lt(0.1));
+    var waterMasked = water.updateMask(water.gt(0));
+    return image.mask(waterMasked);
+  };
+  
+  var Hacalc= function(image){
+    var green= image.select(1);
+    var red= image.select(2);
+    var greenbyred= (green.divide(red)).multiply(0.35);
+    var exp= greenbyred.exp();
+    return exp.multiply(ee.Number(0.80));
+  };
+  var Pagecalc= function(image){
+    var rededge= image.select(3);
+    var red= image.select(2);
+    var rededgeplusred= rededge.add(red);
+    var rededgesubtractred= rededge.subtract(red);
+    var bandratio= rededgesubtractred.divide(rededgeplusred);
+    var thirdterm= (bandratio.multiply(bandratio)).multiply(ee.Number(194.325));
+    var secondterm= bandratio.multiply(ee.Number(86.115));
+    return (thirdterm.add(secondterm)).add(ee.Number(14.039));
+  };
+  var Kuhncalc= function(image){
+    var blue= image.select(0);
+    var green= image.select(1);
+    var bandratiolog= (blue.divide(green)).log10();
+    var fifthterm= (((bandratiolog.multiply(bandratiolog)).multiply(bandratiolog)).multiply(bandratiolog)).multiply(ee.Number(0.4570));
+    var fourthterm= ((bandratiolog.multiply(bandratiolog)).multiply(bandratiolog)).multiply(ee.Number(0.5538));
+    var thirdterm= (bandratiolog.multiply(bandratiolog)).multiply(ee.Number(1.1776));
+    var secondterm= bandratiolog.multiply(ee.Number(2.0546));
+    var firstterm= ee.Image.constant(ee.Number(0.2412));
+    var zeroterm= ee.Number(10);
+    var logchl= ((((firstterm.subtract(secondterm)).add(thirdterm)).add(fourthterm)).add(fifthterm)).multiply(ee.Number(2.303));
+    return logchl.exp();
+  };
+
+  var MNDWI= imageCollection.map(MNDWICalculator);
+  var Ha= MNDWI.map(Hacalc).select(['B3'],['Chla']);
+  var Page= MNDWI.map(Pagecalc).select(['B5'],['Chla']);
+  var Kuhn= MNDWI.map(Kuhncalc).select(['constant'],['Chla']);
+
+return ee.Feature(null,{
+  Ha: Ha,
+  Page: Page,
+  Kuhn: Kuhn
+});
+};

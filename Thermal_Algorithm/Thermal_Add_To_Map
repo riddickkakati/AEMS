@@ -1,0 +1,596 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var L8 = ee.ImageCollection("LANDSAT/LC08/C01/T1"),
+    L8S = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+var waypoints = [
+  //Upper Ganga
+    ee.Feature(
+        ee.Geometry.Point([78.14649, 28.75065]),
+        {'name': '1: Brijghat'}),
+    ee.Feature(
+        ee.Geometry.Point([78.19422, 28.69479]), {'name': '2: Pooth'}),
+    ee.Feature(
+        ee.Geometry.Point([78.19180278, 28.61096944]),
+        {'name': '3: Bhagwanpur'}),
+    ee.Feature(
+        ee.Geometry.Point([78.29535, 28.42746]), {'name': '4: Mubarikpur'}),
+    ee.Feature(
+        ee.Geometry.Point([78.27955, 28.35474]), {'name': '5: Anoopsahar'}),
+    ee.Feature(
+        ee.Geometry.Point([78.33024, 28.27094]), {'name': '6: Karanwas'}),
+    ee.Feature(
+        ee.Geometry.Point([78.368102, 28.239052]), {'name': '7: Rajghat'}),
+    ee.Feature(
+        ee.Geometry.Point([78.39115, 28.200214]), {'name': '8: Narora'}),
+    //Lower Ganga
+    ee.Feature(
+        ee.Geometry.Point([82.5472239713342,25.155617214567048]),
+        {'name': '1: Majhgawan'}),
+    ee.Feature(
+        ee.Geometry.Point([82.57477562233518,25.15693794105981]), {'name': '2: Digur Patti'}),
+    ee.Feature(
+        ee.Geometry.Point([82.59418626162268,25.177841634896115]),
+        {'name': '3: Jiutia Patti'}),
+    ee.Feature(
+        ee.Geometry.Point([82.57828044538665,25.192608310967888]), {'name': '4: Dev Parwa'}),
+    ee.Feature(
+        ee.Geometry.Point([82.56437587385345,25.21823560583664]), {'name': '5: Mujehara Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([82.58686351423431,25.22693212786083]), {'name': '6: Bhogaon'}),
+    ee.Feature(
+        ee.Geometry.Point([82.60986613874603,25.230193163307217]), {'name': '7: Gaharwari'}),
+    ee.Feature(
+        ee.Geometry.Point([82.63767528181243,25.223515711219065]), {'name': '8: Kolahalpur Tari'}),
+    ee.Feature(
+        ee.Geometry.Point([82.65896129255462,25.210470328676827]), {'name': '9: Chapaurkalan'}),
+    ee.Feature(
+        ee.Geometry.Point([82.68436717634368,25.19338497492027]), {'name': '10: Jausara'}),
+    ee.Feature(
+        ee.Geometry.Point([82.70530986433197,25.17256866915564]), {'name': '11: Ratanbo'}),
+    ee.Feature(
+        ee.Geometry.Point([82.72556590681243,25.15765330901778]), {'name': '12: Babu Patali'}),
+    ee.Feature(
+        ee.Geometry.Point([82.7509717906015,25.14335771078932]), {'name': '13: Nanhupur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.7732877696054,25.129060438248413]), {'name': '14: Bargawan'}),
+    ee.Feature(
+        ee.Geometry.Point([82.80487346296478,25.1172483855261]), {'name': '15: Bhelampur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.83783244733978,25.111652804139112]), {'name': '16: Shilpi'}),
+    ee.Feature(
+        ee.Geometry.Point([82.86838817243743,25.122921421784284]), {'name': '17: Ishwarpatti'}),
+    ee.Feature(
+        ee.Geometry.Point([82.88263606672454,25.144833964224247]), {'name': '18: Chak Ghariyari'}),
+    ee.Feature(
+        ee.Geometry.Point([82.88933086042572,25.16969449686727]), {'name': '19: Sultanpur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.90169047956634,25.18771521419141]), {'name': '20: Marahachh'}),
+    ee.Feature(
+        ee.Geometry.Point([82.91473674421478,25.201384325394876]), {'name': '21: Rudauli'}),
+    ee.Feature(
+        ee.Geometry.Point([82.93155955915618,25.206276872974367]), {'name': '22: Betwar'}),
+    ee.Feature(
+        ee.Geometry.Point([82.94247609678732,25.20780589388793]), {'name': '23: Chitanuni'}),
+    ee.Feature(
+        ee.Geometry.Point([82.95318609506731,25.20828363913932]), {'name': '24: Madhopur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.96442991525774,25.20859426532098]), {'name': '25: Muradev'}),
+    ee.Feature(
+        ee.Geometry.Point([82.97515875131731,25.208050668982843]), {'name': '26: Tarapur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.9854584339345,25.208050668982843]), {'name': '27: Sarai Dangari Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([82.99910551340227,25.20859426532098]), {'name': '28: Tikari'}),
+    ee.Feature(
+        ee.Geometry.Point([83.01343923837786,25.21457366479582]), {'name': '29: Narottampur Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([83.0213356617177,25.221639849002305]), {'name': '30: Hakanipur Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([83.02966123849993,25.234761673500323]), {'name': '31: Mirzapur Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([83.02880293161516,25.24873602378006]), {'name': '32: Milkipur'}),
+    ee.Feature(
+        ee.Geometry.Point([83.02124983102922,25.26612408176351]), {'name': '33: Patel Nagar Colony'}),
+    ee.Feature(
+        ee.Geometry.Point([83.01226154775827,25.282199680759867]), {'name': '34: Gangotri Vihar Colony'}),
+    ee.Feature(
+        ee.Geometry.Point([83.00985828848093,25.301755677637754]), {'name': '35: Tilbhandeshwer'}),
+    //Kameng
+    ee.Feature(
+        ee.Geometry.Point([93.039239, 27.356833]),
+        {'name': '1: Seppa'}),
+    ee.Feature(
+        ee.Geometry.Point([92.651241, 27.017082]), {'name': '2: Bhalukpong'}),
+    ee.Feature(
+        ee.Geometry.Point([92.876711, 26.811461]),
+        {'name': '3: Jia Bharali'}),
+    //Brahmaputra
+    ee.Feature(
+        ee.Geometry.Point([94.811587, 27.508455]),
+        {'name': '1: Dibrugarh'}),
+    ee.Feature(
+        ee.Geometry.Point([94.2522,26.8700]), {'name': '2: Nematighat'}),
+    ee.Feature(
+        ee.Geometry.Point([92.771001,26.610661]),
+        {'name': '3: Tezpur'}),
+    ee.Feature(
+        ee.Geometry.Point([91.747524, 26.200867]), {'name': '4: Guwahati (D.C. Court)'}),
+    ee.Feature(
+        ee.Geometry.Point([91.6717, 26.1754709]), {'name': '5: Pandu'}),
+    ee.Feature(
+        ee.Geometry.Point([90.626248, 26.192927]), {'name': '6: Goalpara'}),
+    ee.Feature(
+        ee.Geometry.Point([90.577895,26.201628]), {'name': '7: Pancharatna'}),
+    //Mahanadi
+    ee.Feature(
+        ee.Geometry.Point([82.794027, 21.721748]),
+        {'name': '1: Basantpur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.592005,21.715669]), {'name': '2: Seorinarayan'}),
+    ee.Feature(
+        ee.Geometry.Point([83.268104, 21.689134]),
+        {'name': '3: Kalma'}),
+    ee.Feature(
+        ee.Geometry.Point([83.380536, 21.693367]), {'name': '4: Surajgarh'}),
+    ee.Feature(
+        ee.Geometry.Point([82.395345, 21.641123]), {'name': '5: Kasdol'}),
+    ee.Feature(
+        ee.Geometry.Point([83.845648, 21.552750]), {'name': '6: Hirakud Dam'}),
+    ee.Feature(
+        ee.Geometry.Point([83.894869, 21.309165]), {'name': '7: Deogaon'}),
+    ee.Feature(
+        ee.Geometry.Point([83.899272, 21.185593]), {'name': '8: Baghupalli'}),
+    ee.Feature(
+        ee.Geometry.Point([82.013599, 21.172017]), {'name': '9: Arang'}),
+    ee.Feature(
+        ee.Geometry.Point([81.902679, 20.993271]), {'name': '10: Rajim'}),
+    ee.Feature(
+        ee.Geometry.Point([84.305259, 20.862641]), {'name': '11: Boudh'}),
+    ee.Feature(
+        ee.Geometry.Point([84.086315, 20.827818]), {'name': '12: Khairmal'}),
+    ee.Feature(
+        ee.Geometry.Point([84.780090, 20.598850]), {'name': '13: Tikarpara'}),
+    ee.Feature(
+        ee.Geometry.Point([85.758966, 20.468513]), {'name': '14: Naraj'}),
+    ee.Feature(
+        ee.Geometry.Point([86.079632, 20.429616]), {'name': '15: Kishan Nagar'}),
+    ee.Feature(
+        ee.Geometry.Point([85.083760, 20.415168]), {'name': '16: Gania'}),
+    ee.Feature(
+        ee.Geometry.Point([86.241001, 20.356580]), {'name': '17: Tarapur'}),
+    ee.Feature(
+        ee.Geometry.Point([81.532645, 20.312504]), {'name': '18: Sarangpal'})
+  ];
+  
+var legendPanel;
+  
+var mainchannel = ee.FeatureCollection(waypoints);
+exports.Landsat_Thermal= function(geometry,startdate,enddate,mainchannel,display,value){
+  var cloudcover= ee.Number(20);//Maximum Cloud Cover**Enter**
+  var thermalcount;
+  var thermalimage;
+
+  if (value===1){
+    thermalcount = L8.filterBounds(geometry).filterDate(startdate,enddate).select(ee.List.sequence(0,10));//.filterMetadata('CLOUD_COVER','less_than',cloudcover);
+  }
+    
+  else if (value===2){
+    thermalcount = L8S.filterBounds(geometry).filterDate(startdate,enddate).select(ee.List.sequence(0,10));//.filterMetadata('CLOUD_COVER','less_than',cloudcover);
+  }
+
+  var count=thermalcount.size();
+  var img= thermalcount.first();
+  if (value===1){
+    thermalimage= img.select(9);
+    print(thermalimage,'thermalimage');
+  }
+  
+  else if (value===2){
+    thermalimage= img.select(8);
+    print(thermalimage,'thermalimage');
+  }
+  //If 0 elements error
+  var errorgen= ee.Number(count);
+  print(errorgen,'Number of thermal images to be processed:');
+  var a= ee.String('No thermal images in the period.');
+  var b= ee.String('Thermal image loaded!');
+  var returnObj = ee.Algorithms.If(errorgen.eq(0), a , b);
+  if (display == 0) {
+      var panelmic= ui.Panel({
+      style: {
+        position: 'top-center',
+        padding: '5px'
+      }
+    });
+    var titlemic= ui.Label({
+      value: returnObj.getInfo(),
+      style: {
+        fontSize: '14px',
+        fontWeight: 'bold',
+        margin: '0px',
+        whiteSpace: 'pre',
+        textAlign: 'center'
+      }
+    });
+    panelmic.add(titlemic);
+    Map.add(panelmic);
+  }
+  //end 0 elements error
+  if (value === 1){
+      if (errorgen.getInfo()) {
+        var panelmicinf= ui.Panel({
+          style: {
+            position: 'top-right',
+            padding: '5px'
+          }
+        });
+        var titlemicinf= ui.Label({
+          value: 'Thermal Image Tile Name:\t'+ img.get('BPF_NAME_OLI').getInfo(),
+          targetUrl: img.getDownloadURL({
+            name: 'Raw Landsat Thermal Band (B10) Image 500m',
+            scale: 500,
+            region: thermalimage.geometry()
+        }),
+          style: {
+            fontSize: '14px',
+            fontWeight: 'bold',
+            margin: '0px',
+            whiteSpace: 'pre',
+            textAlign: 'center'
+          }
+        });
+        
+        panelmicinf.add(titlemicinf);
+        Map.add(panelmicinf);
+      }
+    }
+    else if (value === 2) {
+      if (errorgen.getInfo()) {
+        var panelmicinf= ui.Panel({
+          style: {
+            position: 'top-right',
+            padding: '5px'
+          }
+        });
+        var titlemicinf= ui.Label({
+          value: 'Thermal Image Tile Name:\t'+ img.get('L1_LANDSAT_PRODUCT_ID').getInfo(),
+          targetUrl: img.getDownloadURL({
+            name: 'Landsat Level 2 Thermal Band (B10) Image 500m',
+            scale: 500,
+            region: thermalimage.geometry()
+        }),
+          style: {
+            fontSize: '14px',
+            fontWeight: 'bold',
+            margin: '0px',
+            whiteSpace: 'pre',
+            textAlign: 'center'
+          }
+        });
+        
+        panelmicinf.add(titlemicinf);
+        Map.add(panelmicinf);
+      }
+    }
+    var MNDWICalculator= function(image){
+        var green= image.select(1);
+        var SWIR1= image.select(4);
+        var NIR= image.select(3);
+        var red= image.select(2);
+        var blue= image.select(0);
+        var MNDWIimage= green.expression('(green-swir1)/(green+swir1)',{
+          green: green,
+          swir1: SWIR1
+        });
+        var NDVIimage= NIR.expression('(NIR-red)/(NIR+red)',{
+          NIR: NIR,
+          red: red
+        });
+        var EVIimage = NIR.expression('2.5 * (NIR - red) / (1 + NIR + 6 * red - 7.5 * blue)', {
+         NIR: NIR,
+         red: red,
+         blue: blue
+        });
+        var water = (MNDWIimage.gt(NDVIimage).or(MNDWIimage.gt(EVIimage))).and(EVIimage.lt(0.1));
+        var waterMasked = water.updateMask(water.gt(0));
+        var newimage= image.mask(waterMasked);
+        return waterMasked;
+      };
+    var thermalmasked;
+    var atmprocess= require('users/riddickkakati/GEE:AEMS_ALGORITHM_TESTER/Landsat_Atmospheric_Corrections/Landsat_SR_DOS_GISAGMAPS_METHOD');
+    var surfref= require('users/riddickkakati/GEE:AEMS_ALGORITHM_TESTER/Landsat_Atmospheric_Corrected/Landsat_Surface_Reflectance');
+    var Mult;
+    var Add;
+    var Reflectance2;
+    var radiance;
+    var celcius;
+    if (value===1){
+      Reflectance2= L8.filterBounds(geometry).filterDate(startdate,enddate).filterMetadata('CLOUD_COVER','less_than',cloudcover).select(ee.List.sequence(0,10));
+      Mult= ee.Number(img.get('RADIANCE_MULT_BAND_10'));
+      Add= ee.Number(img.get('RADIANCE_ADD_BAND_10'));
+      radiance = thermalimage.multiply(Mult).add(Add);
+      var log = ee.Image(ee.Number(774.89)).divide(radiance).add(ee.Number(1)).log();
+      var topofatmosphere = ee.Image(ee.Number(1321.08)).divide(log);
+      celcius = topofatmosphere.subtract(ee.Number(273));
+      thermalmasked = celcius;
+    }
+    if (value===2){
+      Reflectance2= L8S.filterBounds(geometry).filterDate(startdate,enddate).filterMetadata('CLOUD_COVER','less_than',cloudcover).select(ee.List.sequence(0,10));
+      Mult= ee.Number(img.get('TEMPERATURE_MULT_BAND_ST_B10'));
+      Add= ee.Number(img.get('TEMPERATURE_ADD_BAND_ST_B10'));
+      radiance = thermalimage.multiply(Mult).add(Add);
+      celcius = radiance.subtract(ee.Number(273));
+      thermalmasked = celcius;
+    }
+    var count2 = Reflectance2.size();
+    var errorgen2 = ee.Number(count2);
+    
+    if (errorgen2.getInfo()){
+      var Reflectance;
+      if (value===1){
+        Reflectance= atmprocess.Landsat_SR_DOS_GISMAPS(L8,geometry,startdate,enddate,cloudcover,0);
+      }
+      else if (value===2){
+        Reflectance= surfref.Landsat_SR(L8S,geometry,startdate,enddate,cloudcover,0);
+      }
+      var L8watermask = MNDWICalculator(Reflectance.first());
+      thermalmasked = celcius.mask(L8watermask);
+      print(thermalmasked,'Thermalmasked')
+    
+      Export.image.toDrive({
+      image: thermalmasked,
+      description: 'Thermal B10 masked image',
+      scale: 10,
+      region: Reflectance.geometry(),
+      maxPixels: 5023969339
+      });
+    }
+    
+    Export.image.toDrive({
+    image: thermalmasked,
+    description: 'Thermal B10 image',
+    scale: 10,
+    region: Reflectance2.geometry(),
+    maxPixels: 5023969339
+    });
+    
+    var num_stddev = 3;
+    var geom = thermalmasked.geometry();
+    var string = 'Thermal Image';
+    
+    var thermaladdtomap= function(thermalmasked, sampling_geom, num_stddev, string, mainchannel) {
+      var stats = thermalmasked.reduceRegion({
+      reducer: ee.Reducer.mean().combine({reducer2:ee.Reducer.stdDev(), sharedInputs:true})
+                                .setOutputs(['mean', 'stddev']), 
+      geometry: sampling_geom,
+      scale: 30, 
+      bestEffort: true
+      });
+      print(stats);
+      
+      var vis_params;
+      if (value===1){
+      vis_params = ee.Dictionary({
+          'min': ee.Number(stats.get('constant_mean'))
+                   .subtract(ee.Number(num_stddev).multiply(ee.Number(stats.get('constant_stddev')))),
+          'max': ee.Number(stats.get('constant_mean'))
+                   .add(ee.Number(num_stddev).multiply(ee.Number(stats.get('constant_stddev')))),
+          'palette': ['ff0000','ff7f00','ffff00','00ff00','0000ff','2e2b5f','8b00ff']
+        });
+      }
+      else if (value===2){
+        vis_params = ee.Dictionary({
+          'min': ee.Number(stats.get('ST_B10_mean'))
+                   .subtract(ee.Number(num_stddev).multiply(ee.Number(stats.get('ST_B10_stddev')))),
+          'max': ee.Number(stats.get('ST_B10_mean'))
+                   .add(ee.Number(num_stddev).multiply(ee.Number(stats.get('ST_B10_stddev')))),
+          'palette': ['ff0000','ff7f00','ffff00','00ff00','0000ff','2e2b5f','8b00ff']
+        });
+      }
+      Map.addLayer({
+        eeObject: thermalmasked,
+        visParams: vis_params.getInfo(),
+        name: string,
+        shown: false
+      });
+    
+    function makeColorBarParams(palette) {
+    return {
+      bbox: [0, 0, 1, 0.1],
+      dimensions: '100x10',
+      format: 'png',
+      min: 0,
+      max: 1,
+      palette: palette,
+      };
+    }
+    var colorBar = ui.Thumbnail({
+      image: ee.Image.pixelLonLat().select(0),
+      params: makeColorBarParams(vis_params.get('palette')),
+      style: {stretch: 'horizontal', margin: '0px 8px', maxHeight: '24px'},
+    });
+    var dictmin= ee.Number.parse(ee.Number(vis_params.get('min')).format('%.3f'));
+    var minimum= dictmin.getInfo();
+    var dictmax= ee.Number.parse(ee.Number(vis_params.get('max')).format('%.3f'));
+    var maximum= dictmax.getInfo();
+    var mid= (dictmax.subtract(dictmin)).multiply(0.5).add(dictmin).format('%.3f');
+    var midval= mid.getInfo();
+    var legendLabels = ui.Panel({
+      widgets: [
+        ui.Label(minimum, {margin: '4px 8px'}),
+        ui.Label(
+            midval ,
+            {margin: '4px 8px', textAlign: 'center', stretch: 'horizontal'}),
+        ui.Label(maximum, {margin: '4px 8px'})
+      ],
+      layout: ui.Panel.Layout.flow('horizontal')
+    });
+    
+    var legendTitle = ui.Label({
+      value: 'Water Temperature (Celcius)',
+      targetUrl: thermalmasked.getDownloadURL({
+        name: 'Water Temperature 500m',
+        scale: 500,
+        region: thermalmasked.geometry()
+    }),
+      style: {fontWeight: 'bold'}
+    });
+    legendPanel = ui.Panel({
+    widgets: [legendTitle, colorBar, legendLabels],
+    style:{
+    position: 'top-left',
+    shown: false
+  }
+  });
+  
+  legendPanel.add(ui.Button({
+        label: 'Close',
+        onClick: function() {
+          legendPanel.style().set('shown', false);
+        }
+      }));
+      
+  
+  
+  Map.add(legendPanel);
+  
+  var thermal_addlegend = ui.Button({
+    label: 'Show water temperature legend',
+    onClick: function() {
+          legendPanel.style().set('shown', true);
+        },
+    style: {
+      position: 'top-right'
+    }
+  });
+  
+  Map.add(thermal_addlegend);
+  
+    };
+    var thermalimagemap = thermaladdtomap(thermalmasked,geom, num_stddev, string, mainchannel);
+  
+    if (display == 1) {
+    
+      // Create an inspector panel with a horizontal layout.
+      var inspector = ui.Panel({
+        layout: ui.Panel.Layout.flow('vertical')
+      });
+      
+      // Add a label to the panel.
+      inspector.add(ui.Label('Point temperature value'));
+      inspector.add(ui.Button({
+    label: 'Show legend',
+    onClick: function() {
+          legendPanel.style().set('shown', true);
+        },
+    style: {
+      position: 'top-left'
+    }
+  }));
+      
+      // Add the panel to the default map.
+      Map.add(inspector);
+      
+      Map.style().set('cursor', 'crosshair');
+      
+      Map.onClick(function(coords) {
+        // Clear the panel and show a loading message.
+        inspector.clear();
+        inspector.style().set('shown', true);
+        inspector.add(ui.Label('Loading...', {color: 'gray'}));
+      
+        var point = ee.Geometry.Point(coords.lon, coords.lat);
+        var sampledPoint = thermalmasked.reduceRegion(ee.Reducer.mean(), point,30);
+        print(sampledPoint,'SampledPoint');
+        var computedValue = sampledPoint.get('constant');
+      
+        // Request the value from the server and use the results in a function.
+        computedValue.evaluate(function(result) {
+          inspector.clear();
+      
+          // Add a label with the results from the server.
+          inspector.add(ui.Label({
+            value: 'Temperature (Celsius)',
+            style: {stretch: 'vertical', fontWeight: 'bold'}
+          }));
+          inspector.add(ui.Button({
+      label: 'Show legend',
+      onClick: function() {
+            legendPanel.style().set('shown', true);
+          },
+      style: {
+        position: 'top-left'
+      }
+    }));
+    // Add a button to hide the Panel.
+      inspector.add(ui.Button({
+        label: 'Close',
+        onClick: function() {
+          inspector.style().set('shown', false);
+        },
+        style: {
+        position: 'top-right'}
+      }));
+          inspector.add(ui.Label({
+            value: 'Temperature (Celsius): ' + result.toFixed(2),
+            style: {stretch: 'vertical'}
+          }));
+          
+           inspector.add(ui.Label({
+            value: 'Coordinates: '+'('+ coords.lon.toFixed(2) + ','+ coords.lat.toFixed(2) + ')',
+            style: {stretch: 'vertical'}
+          }));
+        });
+      });
+      // Plot thermal spatial variation along Brahmaputra.
+      var checkbox= ui.Button({
+        style: {
+            position: 'bottom-right',
+            padding: '5px'
+          },
+      label: 'Temperature spatial variation',
+      onClick: function(){
+       var chart = ui.Chart.image.byRegion({
+          image: thermalmasked,
+          regions: mainchannel,
+          scale: 30,
+          xProperty: 'name'
+        });
+        chart.setOptions({
+          title: 'Temperature spatial variation along river',
+          vAxis: {
+            title: 'Temperature (Celsius)'
+          },
+          legend: {position: 'none'},
+          lineWidth: 0,
+          pointSize: 4
+        });
+      
+        Map.addLayer({
+          eeObject: mainchannel,
+          name: 'Temperature spatial variation points',
+          shown: true
+        });
+        var ChartPanel = ui.Panel({style: {width: '30%'}});
+        var intro = ui.Panel([
+        ui.Label({
+          value: 'Charts of Temperature:',
+          style: {fontSize: '20px', fontWeight: 'bold'}
+        }),
+      ]);
+      
+      ui.root.remove(ChartPanel);
+      ChartPanel.add(intro);
+      ChartPanel.widgets().set(1, chart);
+      ChartPanel.add(ui.Button({
+              label: 'Close',
+              onClick: function() {
+              ChartPanel.style().set('shown', false);
+              }
+            }));
+      ui.root.add(ChartPanel);
+      }
+      });
+    Map.add(checkbox);
+    }
+  };

@@ -1,0 +1,6 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var imageCollection = ee.ImageCollection("CIESIN/GPWv411/GPW_UNWPP-Adjusted_Population_Density"),
+    table = ee.FeatureCollection("users/riddickkakati/India-Shape");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+var Assam = table.filter('ST_NM == "Assam"');
+Map.addLayer(imageCollection.toBands().clip(Assam).select(3))

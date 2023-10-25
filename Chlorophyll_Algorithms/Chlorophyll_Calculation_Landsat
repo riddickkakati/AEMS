@@ -1,0 +1,92 @@
+exports.Chlorophyll_Landsat= function(imageCollection){
+  var MNDWICalculator= function(image){
+    var green= image.select(1);
+    var SWIR1= image.select(4);
+    var NIR= image.select(3);
+    var red= image.select(2);
+    var blue= image.select(0);
+    var MNDWIimage= green.expression('(green-swir1)/(green+swir1)',{
+      green: green,
+      swir1: SWIR1
+    });
+    var NDVIimage= NIR.expression('(NIR-red)/(NIR+red)',{
+      NIR: NIR,
+      red: red
+    });
+    var EVIimage = NIR.expression('2.5 * (NIR - red) / (1 + NIR + 6 * red - 7.5 * blue)', {
+     NIR: NIR,
+     red: red,
+     blue: blue
+    });
+    var water = (MNDWIimage.gt(NDVIimage).or(MNDWIimage.gt(EVIimage))).and(EVIimage.lt(0.1));
+    var waterMasked = water.updateMask(water.gt(0));
+    return image.mask(waterMasked);
+  };
+  
+  var Prasad1= function(image){
+    var green= image.select(1);
+    var red= image.select(2);
+    return ((green.divide(red)).multiply(ee.Number(439.787))).subtract(426.431);
+  };
+  var Prasad2= function(image){
+    var blue= image.select(0);
+    var red= image.select(2);
+    var bluebyred= (blue.divide(red)).multiply(16.8192);
+    var exp= bluebyred.exp();
+    return exp.multiply(ee.Number(0.0000893996));
+  };
+  var Prasad3= function(image){
+    var blue= image.select(0);
+    var red= image.select(2);
+    var log= (red.divide(blue)).log();
+    return (log.multiply(ee.Number(-297.069))).add(116.453);
+  };
+  var Prasad4= function(image){
+    var blue= image.select(0);
+    var red= image.select(2);
+    var power= blue.pow(ee.Number(13.301));
+    return (red.divide(power)).multiply(ee.Number(1268.37));
+  };
+  
+  var MNDWI= imageCollection.map(MNDWICalculator);
+  var Imagesprasad1= MNDWI.map(Prasad1).select(['B3'],['Chla']);
+  var Imagesprasad2= MNDWI.map(Prasad2).select(['B2'],['Chla']);
+  var Imagesprasad3= MNDWI.map(Prasad3).select(['B4'],['Chla']);
+  var Imagesprasad4= MNDWI.map(Prasad4).select(['B4'],['Chla']);
+  
+return ee.Feature(null,{
+  Prasad1: Imagesprasad1,
+  Prasad2: Imagesprasad2,
+  Prasad3: Imagesprasad3,
+  Prasad4: Imagesprasad4
+});
+};
+  //Map.addLayer(MNDWI.first().select([0,1,2]),imageVisParam);
+  /*
+  //Coordinates of survey on March 2 2021
+  var point1 = ee.Geometry.Point([92.04111111, 26.24916667]);
+  var point2 = ee.Geometry.Point([92.01277778, 26.27944444]);//No chlorophyll
+  var point3 = ee.Geometry.Point([92.04083333, 26.24888889]);
+  var point4 = ee.Geometry.Point([92.01833333, 26.28861111]);
+  var point5 = ee.Geometry.Point([92.01277778, 26.27944444]);
+  
+  Map.addLayer({
+    eeObject: point1,
+    name: '92.04111111, 26.24916667'
+  });
+  Map.addLayer({
+    eeObject: point2,
+    name: '92.01277778, 26.27944444 (No Chlorophyll)'
+  });
+  Map.addLayer({
+    eeObject: point3,
+    name: '92.04083333, 26.24888889'
+  });
+  Map.addLayer({
+    eeObject: point4,
+    name: '92.01833333, 26.28861111'
+  });
+  Map.addLayer({
+    eeObject: point5,
+    name: '92.01277778, 26.27944444'
+  });*/

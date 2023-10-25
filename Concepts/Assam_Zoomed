@@ -1,0 +1,178 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var S2 = ee.ImageCollection("COPERNICUS/S2"),
+    Ganeshpahar = 
+    /* color: #98ff00 */
+    /* shown: false */
+    ee.Geometry.Point([91.9716, 26.2839]),
+    table = ee.FeatureCollection("users/rdkktidivinity/India-Shape");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+//Variables and imports **Enter Imports**
+var atmprocess= require('users/riddickkakati/GEE:AEMS_ALGORITHM_TESTER/Sentinel_Atmospheric_Corrections/Sentinel_Surface_Reflectance_DOS_from_Reflectance_GISAGMAPS_METHOD');
+var baseplotmap= require('users/riddickkakati/GEE:AEMS_ALGORITHM_TESTER/Chlorophyll_Algorithms/Basemap_Add_To_Map');
+var chlplotmap= require('users/riddickkakati/GEE:AEMS_ALGORITHM_TESTER/Chlorophyll_Algorithms/Chlorophyll_Add_To_Map');
+var startdate= ee.String('2020-03-01');//startdate,enddate: Time Period of Study**Enter**
+var enddate= ee.String('2021-03-01');//**Enter**
+var cloudcover= ee.Number(20);//Maximum Cloud Cover**Enter**
+//**Enter var i below**
+var i= ee.Number(15).toInt();//Put the image number required here. As array index start from zero so the first image number will be zero.
+var Reflectance= atmprocess.Sentinel_SR_DOS_GISMAPS(S2,Ganeshpahar,startdate,enddate,cloudcover);
+var chlorophyllcalc= require('users/rdkktidivinity/riddick_GEE:AEMS_ALGORITHM_TESTER/Chlorophyll_Algorithms/Chlorophyll_Calculation_Sentinel');
+var SentinelImageCollectionUsed= S2.filterBounds(Ganeshpahar).filterDate(startdate,enddate).filterMetadata('CLOUDY_PIXEL_PERCENTAGE','less_than',cloudcover);
+var Ha = ee.ImageCollection(chlorophyllcalc.Chlorophyll_Sentinel(Reflectance).get('Ha'));
+var Page= ee.ImageCollection(chlorophyllcalc.Chlorophyll_Sentinel(Reflectance).get('Page'));
+var Kuhn= ee.ImageCollection(chlorophyllcalc.Chlorophyll_Sentinel(Reflectance).get('Kuhn'));
+var ReflectanceList= Reflectance.toList(Reflectance.size());
+var SentinelImageCollectionUsedList= SentinelImageCollectionUsed.toList(SentinelImageCollectionUsed.size());
+var Halist= Ha.toList(Ha.size());
+var Pagelist= Page.toList(Page.size());
+var Kuhnlist= Kuhn.toList(Kuhn.size());
+
+//Map styling
+
+/*var panel= ui.Panel({
+  style: {
+    position: 'top-center',
+    padding: '5px'
+  }
+});
+var title= ui.Label({
+  value: 'Image Tile Name:\t'+ ee.Image(SentinelImageCollectionUsedList.get(i)).get('GRANULE_ID').getInfo() +'\nGeometry Imports Coordinates: \t('+ Ganeshpahar.coordinates().get(0).getInfo()+','+Ganeshpahar.coordinates().get(1).getInfo()+')',
+  style: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    margin: '0px',
+    whiteSpace: 'pre',
+    textAlign: 'center'
+  }
+});
+panel.add(title);
+var button1 = ui.Button({
+  style: {
+    position: 'bottom-left',
+    padding: '5px'
+  },
+  label: 'Map Chlorophyll Content: Ha Algorithm',
+  onClick: function() {
+    Map.clear();
+    Map.add(panel);
+    var clipimage= ee.Image(ReflectanceList.get(i));
+    var clipgeometry= baseplotmap.Add_to_Map(clipimage,3,'Surface Reflectance');//here put i
+    var image= ee.Image(Halist.get(i)).clip(clipgeometry);//here put i
+    var geometry= image.geometry();
+    chlplotmap.Add_to_Map(image, geometry,3,'Ha');
+    Map.add(button1);
+    Map.add(button2);
+    Map.add(button3);
+    Map.add(button4);
+  }
+});
+var button2 = ui.Button({
+  style: {
+    position: 'bottom-left',
+    padding: '5px'
+  },
+  label: 'Map Chlorophyll Content: Page Algorithm',
+  onClick: function() {
+    Map.clear();
+    Map.add(panel);
+    var clipimage= ee.Image(ReflectanceList.get(i));
+    var clipgeometry= baseplotmap.Add_to_Map(clipimage,3,'Surface Reflectance');//here put i
+    var image= ee.Image(Pagelist.get(i)).clip(clipgeometry);//here put i
+    var geometry= image.geometry();
+    chlplotmap.Add_to_Map(image, geometry,3,'Page');
+    Map.add(button1);
+    Map.add(button2);
+    Map.add(button3);
+    Map.add(button4);
+  }
+});
+var button3 = ui.Button({
+  style: {
+    position: 'bottom-left',
+    padding: '5px'
+  },
+  label: 'Map Chlorophyll Content: Kuhn Algorithm',
+  onClick: function() {
+    Map.clear();
+    Map.add(panel);
+    var clipimage= ee.Image(ReflectanceList.get(i));
+    var clipgeometry= baseplotmap.Add_to_Map(clipimage,3,'Surface Reflectance');//here put i
+    var image= ee.Image(Kuhnlist.get(i)).clip(clipgeometry);//here put i
+    var geometry= image.geometry();
+    chlplotmap.Add_to_Map(image, geometry,3,'Kuhn');
+    Map.add(button1);
+    Map.add(button2);
+    Map.add(button3);
+    Map.add(button4);
+  }
+});
+var button4 = ui.Button({
+  style: {
+    position: 'bottom-left',
+    padding: '5px'
+  },
+  label: 'Show All Maps',
+  onClick: function() {
+    Map.clear();
+    Map.add(panel);
+    var clipimage= ee.Image(ReflectanceList.get(i));
+    var clipgeometry= baseplotmap.Add_to_Map(clipimage,3,'Surface Reflectance');//here put i
+    var image1= ee.Image(Halist.get(i)).clip(clipgeometry);//here put i
+    var geometry1= image1.geometry();
+    chlplotmap.Add_to_Map(image1, geometry1,3,'Ha');
+    var image2= ee.Image(Pagelist.get(i)).clip(clipgeometry);//here put i
+    var geometry2= image2.geometry();
+    chlplotmap.Add_to_Map(image2, geometry2,3,'Page');
+    var image3= ee.Image(Kuhnlist.get(i)).clip(clipgeometry);//here put i
+    var geometry3= image3.geometry();
+    chlplotmap.Add_to_Map(image3, geometry3,3,'Kuhn');
+    Map.add(button1);
+    Map.add(button2);
+    Map.add(button3);
+    Map.add(button4);
+  }
+});*/
+  var clipimage= ee.Image(ReflectanceList.get(i));
+  
+  Map.addLayer(table.filterBounds(Ganeshpahar));
+  var clipgeometry= baseplotmap.Add_to_Map(clipimage,3,'Surface Reflectance');//here put i
+  Map.addLayer({
+    eeObject: clipgeometry.bounds(),
+    visParams: {
+      color: 'red'
+    }
+  });
+  /*Map.add(panel);
+  Map.add(button1);
+  Map.add(button2);
+  Map.add(button3);
+  Map.add(button4);*/
+  
+/*
+//Coordinates of survey on March 2 2021
+var point1 = ee.Geometry.Point([92.04111111, 26.24916667]);
+var point2 = ee.Geometry.Point([92.01277778, 26.27944444]);//No chlorophyll
+var point3 = ee.Geometry.Point([92.04083333, 26.24888889]);
+var point4 = ee.Geometry.Point([92.01833333, 26.28861111]);
+var point5 = ee.Geometry.Point([92.01277778, 26.27944444]);
+
+Map.addLayer({
+  eeObject: point1,
+  name: '92.04111111, 26.24916667'
+});
+Map.addLayer({
+  eeObject: point2,
+  name: '92.01277778, 26.27944444 (No Chlorophyll)'
+});
+Map.addLayer({
+  eeObject: point3,
+  name: '92.04083333, 26.24888889'
+});
+Map.addLayer({
+  eeObject: point4,
+  name: '92.01833333, 26.28861111'
+});
+Map.addLayer({
+  eeObject: point5,
+  name: '92.01277778, 26.27944444'
+});*/

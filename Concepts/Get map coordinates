@@ -1,0 +1,6 @@
+Map.style().set('cursor', 'crosshair');
+
+var point;
+Map.onClick(function(coords) {
+  point = ee.Geometry.Point(coords.lon, coords.lat);
+});

@@ -1,0 +1,203 @@
+/*
+Dark Object Subtraction method for calculating Surface Reflectance for Landsat 8 Imagery.
+Method implemented: GIS Ag Maps (https://www.gisagmaps.com/l8-atmospheric-correction)
+Developed by: Riddick Kakati
+Inputs required: Landsat 8 image collection, Geometry (Study area), Starting time of study time period, Ending time of study time period, Maximum cloud Cover to be considered for images
+*/
+exports.Landsat_SR_DOS_GISMAPS= function(L8,geometry,startdate,enddate,cc,eee){
+  var filter = L8.filterBounds(geometry).filterDate(startdate,enddate).filterMetadata('CLOUD_COVER','less_than',cc);//.select(ee.List.sequence(0,10));//selecting first 11 bands only as the 12th band is quality assessment band which has no application in this atmospheric correction code
+  function CloudRemoval (image) {
+    var removecloud = image.mask(image.select('BQA').eq(2720));
+    return removecloud;
+  }
+  filter = filter.map(CloudRemoval);
+  filter = filter.select(ee.List.sequence(0,10));
+  print('Original Image:',filter);
+  var count=filter.size();
+  //If 0 elements error
+  var errorgen= ee.Number(count);
+  print('Number of images to be processed:',errorgen);
+  var a= ee.String('Error: No cloud free images in the period.');
+  var b= ee.String('Warning: Too long date range. App might not responding.');
+  var c= ee.String('Generation successful =>');
+  var returnObj = ee.Algorithms.If(errorgen.eq(0), a , ee.Algorithms.If(errorgen.gte(12), b, c));
+  if (eee) {      
+      var panel= ui.Panel({
+      style: {
+        position: 'bottom-center',
+        padding: '5px'
+      }
+    });
+    var title= ui.Label({
+      value: returnObj.getInfo(),
+      style: {
+        fontSize: '14px',
+        fontWeight: 'bold',
+        margin: '0px',
+        whiteSpace: 'pre',
+        textAlign: 'center'
+      }
+    });
+    panel.add(title);
+    Map.add(panel);
+  }
+  //end 0 elements error
+  if (errorgen.getInfo()) {
+    var filterlist= filter.toList(count);
+    var imagearray= ee.List.sequence(0,count.subtract(1));
+    
+    //TOA Reflectance
+    var TOAReflectanceCalc= function(i){
+      i=ee.Number(i).toInt();
+      var image= ee.Image(filterlist.get(i));
+      return ee.Algorithms.Landsat.TOA(image);
+    };
+    var TOAReflectance= ee.ImageCollection(imagearray.map(TOAReflectanceCalc));
+    var TOAcount=TOAReflectance.size();
+    var TOAReflectancelist= ee.List(TOAReflectance.toList(TOAcount));
+    
+    print('TOAReflectance:', TOAReflectance);
+    
+    //Function to get Histogram values as table
+    var getHistData = function(image) {
+      //i=ee.Number(image).toInt();
+      var band=image.bandNames();
+      var bandseq= ee.List.sequence(0,(band.size()).subtract(1));
+      var histogramfunction= function(j){
+        j=ee.Number(j).toInt();
+        var j1=ee.String(band.get(j));
+        var histogram = image.select(j1).reduceRegion({
+        reducer: ee.Reducer.histogram({
+          maxBuckets: Math.pow(2, 8), 
+        }), 
+        geometry: image.geometry(), 
+        scale: 10, 
+        maxPixels: 1e10, 
+        });
+       // Get the list of DN values (x-axis of the histogram)
+        var dnList = ee.Array(ee.Dictionary(histogram.get(j1)).get('bucketMeans'));
+       // Get the list of Counts values (y-Axis of the histogram)
+        var countsList = ee.Array(ee.Dictionary(histogram.get(j1)).get('histogram'));
+        var signum= countsList.signum();
+        var countsnonzero= countsList.mask(signum).toList();
+        var countsnonzerofirst= ee.Number(countsnonzero.get(0));
+        countsList= countsList.toList();
+        var index= countsList.indexOf(countsnonzerofirst);
+        dnList= dnList.toList();
+        var darkobject= ee.Number(dnList.get(index));
+        var darkobjectnext= ee.Number(dnList.get(index.add(1)));
+        var DOS= ee.Algorithms.If(darkobjectnext.subtract(darkobject).lt(ee.Number(100)),darkobject,ee.Number(0).toDouble());
+        DOS= ee.Algorithms.If(darkobject.lt(ee.Number(0)),ee.Number(0).toDouble(),darkobject);
+        return ee.Image.constant(DOS);
+      };
+    return ee.ImageCollection(bandseq.map(histogramfunction)).toBands();
+    };
+    
+    
+    var Darkobjects= filter.map(getHistData);
+    print('Darkobjects:',Darkobjects);
+    
+    var RedBandObject= Darkobjects.select(3);
+    
+    var listredbandobjects= ee.List(RedBandObject.toList(RedBandObject.size()));
+    var redbandobjectsize= listredbandobjects.size();
+    var iterator= ee.List.sequence(0,redbandobjectsize.subtract(1));
+    var filterobjects= ee.List(filter.toList(filter.size()));
+    var redconstantcalc= function(i){
+      i=ee.Number(i).toInt();
+      var image= ee.Image(listredbandobjects.get(i));
+      var reflectancemult= ee.Image(filterobjects.get(i)).get('REFLECTANCE_MULT_BAND_4');
+      var reflectanceadd= ee.Image(filterobjects.get(i)).get('REFLECTANCE_ADD_BAND_4');
+      var sunele = ee.Image(filterobjects.get(i)).get('SUN_ELEVATION');
+      var sinsunele = ee.Number(sunele).sin();
+      var mean = image.reduceRegion({
+        reducer: ee.Reducer.mean(), 
+        geometry: geometry, 
+        scale: 10, 
+        maxPixels: 1e10
+      });
+      var redbanddn= ee.Number(mean.get(ee.String(mean.keys().get(0))));
+      var redref= ((redbanddn.multiply(reflectancemult)).add(reflectanceadd)).divide(sinsunele);
+    return redref;
+    };
+    
+    var redscatter= iterator.map(redconstantcalc);
+    
+    var bluegreenNIRref= function(j){
+      j=ee.Number(j).toInt();
+      var redref= ee.Number(redscatter.get(j));
+      var blueref= (((redref.multiply(redref)).multiply(ee.Number(-13.2702248))).add(redref.multiply(ee.Number(1.86614321)))).add(ee.Number(0.03290906));
+      var greenref=(((redref.multiply(redref)).multiply(ee.Number(-6.61392097))).add(redref.multiply(ee.Number(1.5371034)))).add(ee.Number(0.00805925));
+      var NIRref= (((redref.multiply(redref)).multiply(ee.Number(6.50869749))).add(redref.multiply(ee.Number(0.2685842)))).subtract(ee.Number(0.00101387));
+      return(ee.Feature(null,{
+        bluescatter: blueref,
+        greenscatter: greenref,
+        NIRscatter: NIRref
+      }));
+    };
+    
+    var scatter= ee.FeatureCollection(iterator.map(bluegreenNIRref));
+    
+    var bluescatter= scatter.aggregate_array('bluescatter');
+    var greenscatter= scatter.aggregate_array('greenscatter');
+    var NIRscatter= scatter.aggregate_array('NIRscatter');
+    
+    var bluereflectance= TOAReflectance.select(1).toList(TOAReflectance.size());
+    var greenreflectance= TOAReflectance.select(2).toList(TOAReflectance.size());
+    var redreflectance= TOAReflectance.select(3).toList(TOAReflectance.size());
+    var NIRreflectance= TOAReflectance.select(4).toList(TOAReflectance.size());
+    
+    
+    var bluesurfacereflectancecalculator= function(l){
+      l=ee.Number(l).toInt();
+      var blueimage= ee.Image(bluereflectance.get(l));
+      var bluescattervalue= ee.Number(bluescatter.get(l));
+      var bluescatterimage= ee.Image.constant(ee.List.repeat(bluescattervalue,blueimage.bandNames().length()));
+      return blueimage.subtract(bluescatterimage);
+    };
+    
+    var greensurfacereflectancecalculator= function(l){
+      l=ee.Number(l).toInt();
+      var greenimage= ee.Image(greenreflectance.get(l));
+      var greenscattervalue= ee.Number(greenscatter.get(l));
+      var greenscatterimage= ee.Image.constant(ee.List.repeat(greenscattervalue,greenimage.bandNames().length()));
+      return greenimage.subtract(greenscatterimage);
+    };
+    
+    var redsurfacereflectancecalculator= function(l){
+      l=ee.Number(l).toInt();
+      var redimage= ee.Image(redreflectance.get(l));
+      var redscattervalue= ee.Number(redscatter.get(l));
+      var redscatterimage= ee.Image.constant(ee.List.repeat(redscattervalue,redimage.bandNames().length()));
+      return redimage.subtract(redscatterimage);
+    };
+    
+    var NIRsurfacereflectancecalculator= function(l){
+      l=ee.Number(l).toInt();
+      var NIRimage= ee.Image(NIRreflectance.get(l));
+      var NIRscattervalue= ee.Number(NIRscatter.get(l));
+      var NIRscatterimage= ee.Image.constant(ee.List.repeat(NIRscattervalue,NIRimage.bandNames().length()));
+      return NIRimage.subtract(NIRscatterimage);
+    };
+    
+    var blueSR= iterator.map(bluesurfacereflectancecalculator);
+    var greenSR= iterator.map(greensurfacereflectancecalculator);
+    var redSR= iterator.map(redsurfacereflectancecalculator);
+    var NIRSR= iterator.map(NIRsurfacereflectancecalculator);
+    
+    var compositeSRmaker= function(i){
+      var blueSRi = blueSR.get(i);
+      var greenSRi = greenSR.get(i);
+      var redSRi = redSR.get(i);
+      var NIRSRi = NIRSR.get(i);
+      var SWIR1i = ee.Image(TOAReflectancelist.get(i)).select(5);
+      var SWIR2i = ee.Image(TOAReflectancelist.get(i)).select(6);
+      return ee.Image([blueSRi,greenSRi,redSRi,NIRSRi,SWIR1i,SWIR2i]);
+    };
+    
+    var compositeSR= ee.ImageCollection(iterator.map(compositeSRmaker));
+    print('Surface Reflectance for Blue, Green, Red, NIR, SWIR 1 and SWIR2:', compositeSR);
+    
+  return compositeSR;
+  }
+};

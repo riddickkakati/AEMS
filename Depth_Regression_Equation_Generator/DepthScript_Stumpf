@@ -1,0 +1,377 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var bathy_points = ee.FeatureCollection("users/riddickkakati/Brahmaputra_Bathymetry_Dec_2021"),
+    S2 = ee.ImageCollection("COPERNICUS/S2"),
+    Ganeshpahar = 
+    /* color: #98ff00 */
+    /* shown: false */
+    ee.Geometry.Point([91.9716, 26.2839]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+var baseplotmap= require('users/riddickkakati/GEE:AEMS_ALGORITHM_TESTER/Stumpf_Depth_Algorithm/Basemap_Add_To_Map');
+var startdate = '2021-12-01';
+var enddate = '2021-12-31';
+var split = 0.8;
+var depthName = 'Depth';
+var bathyPoints = ee.FeatureCollection(bathy_points.randomColumn('random').sort('random'));
+var bathyTrain = bathyPoints.filter(ee.Filter.lt('random', split));
+var bathyValid = bathyPoints.filter(ee.Filter.gte('random', split));
+var atmprocess= require('users/riddickkakati/GEE:AEMS_ALGORITHM_TESTER/Sentinel_Atmospheric_Corrections/Sentinel_Surface_Reflectance_DOS_from_Reflectance_GISAGMAPS_METHOD');
+var cloudcover= ee.Number(20);//Maximum Cloud Cover**Enter**
+var Reflectance= atmprocess.Sentinel_SR_DOS_GISMAPS(S2,Ganeshpahar,startdate,enddate,cloudcover,0).median();
+var waypoints = [
+  //Upper Ganga
+    ee.Feature(
+        ee.Geometry.Point([78.14649, 28.75065]),
+        {'name': '1: Brijghat'}),
+    ee.Feature(
+        ee.Geometry.Point([78.19422, 28.69479]), {'name': '2: Pooth'}),
+    ee.Feature(
+        ee.Geometry.Point([78.19180278, 28.61096944]),
+        {'name': '3: Bhagwanpur'}),
+    ee.Feature(
+        ee.Geometry.Point([78.29535, 28.42746]), {'name': '4: Mubarikpur'}),
+    ee.Feature(
+        ee.Geometry.Point([78.27955, 28.35474]), {'name': '5: Anoopsahar'}),
+    ee.Feature(
+        ee.Geometry.Point([78.33024, 28.27094]), {'name': '6: Karanwas'}),
+    ee.Feature(
+        ee.Geometry.Point([78.368102, 28.239052]), {'name': '7: Rajghat'}),
+    ee.Feature(
+        ee.Geometry.Point([78.39115, 28.200214]), {'name': '8: Narora'}),
+    //Lower Ganga
+    ee.Feature(
+        ee.Geometry.Point([82.5472239713342,25.155617214567048]),
+        {'name': '1: Majhgawan'}),
+    ee.Feature(
+        ee.Geometry.Point([82.57477562233518,25.15693794105981]), {'name': '2: Digur Patti'}),
+    ee.Feature(
+        ee.Geometry.Point([82.59418626162268,25.177841634896115]),
+        {'name': '3: Jiutia Patti'}),
+    ee.Feature(
+        ee.Geometry.Point([82.57828044538665,25.192608310967888]), {'name': '4: Dev Parwa'}),
+    ee.Feature(
+        ee.Geometry.Point([82.56437587385345,25.21823560583664]), {'name': '5: Mujehara Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([82.58686351423431,25.22693212786083]), {'name': '6: Bhogaon'}),
+    ee.Feature(
+        ee.Geometry.Point([82.60986613874603,25.230193163307217]), {'name': '7: Gaharwari'}),
+    ee.Feature(
+        ee.Geometry.Point([82.63767528181243,25.223515711219065]), {'name': '8: Kolahalpur Tari'}),
+    ee.Feature(
+        ee.Geometry.Point([82.65896129255462,25.210470328676827]), {'name': '9: Chapaurkalan'}),
+    ee.Feature(
+        ee.Geometry.Point([82.68436717634368,25.19338497492027]), {'name': '10: Jausara'}),
+    ee.Feature(
+        ee.Geometry.Point([82.70530986433197,25.17256866915564]), {'name': '11: Ratanbo'}),
+    ee.Feature(
+        ee.Geometry.Point([82.72556590681243,25.15765330901778]), {'name': '12: Babu Patali'}),
+    ee.Feature(
+        ee.Geometry.Point([82.7509717906015,25.14335771078932]), {'name': '13: Nanhupur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.7732877696054,25.129060438248413]), {'name': '14: Bargawan'}),
+    ee.Feature(
+        ee.Geometry.Point([82.80487346296478,25.1172483855261]), {'name': '15: Bhelampur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.83783244733978,25.111652804139112]), {'name': '16: Shilpi'}),
+    ee.Feature(
+        ee.Geometry.Point([82.86838817243743,25.122921421784284]), {'name': '17: Ishwarpatti'}),
+    ee.Feature(
+        ee.Geometry.Point([82.88263606672454,25.144833964224247]), {'name': '18: Chak Ghariyari'}),
+    ee.Feature(
+        ee.Geometry.Point([82.88933086042572,25.16969449686727]), {'name': '19: Sultanpur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.90169047956634,25.18771521419141]), {'name': '20: Marahachh'}),
+    ee.Feature(
+        ee.Geometry.Point([82.91473674421478,25.201384325394876]), {'name': '21: Rudauli'}),
+    ee.Feature(
+        ee.Geometry.Point([82.93155955915618,25.206276872974367]), {'name': '22: Betwar'}),
+    ee.Feature(
+        ee.Geometry.Point([82.94247609678732,25.20780589388793]), {'name': '23: Chitanuni'}),
+    ee.Feature(
+        ee.Geometry.Point([82.95318609506731,25.20828363913932]), {'name': '24: Madhopur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.96442991525774,25.20859426532098]), {'name': '25: Muradev'}),
+    ee.Feature(
+        ee.Geometry.Point([82.97515875131731,25.208050668982843]), {'name': '26: Tarapur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.9854584339345,25.208050668982843]), {'name': '27: Sarai Dangari Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([82.99910551340227,25.20859426532098]), {'name': '28: Tikari'}),
+    ee.Feature(
+        ee.Geometry.Point([83.01343923837786,25.21457366479582]), {'name': '29: Narottampur Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([83.0213356617177,25.221639849002305]), {'name': '30: Hakanipur Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([83.02966123849993,25.234761673500323]), {'name': '31: Mirzapur Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([83.02880293161516,25.24873602378006]), {'name': '32: Milkipur'}),
+    ee.Feature(
+        ee.Geometry.Point([83.02124983102922,25.26612408176351]), {'name': '33: Patel Nagar Colony'}),
+    ee.Feature(
+        ee.Geometry.Point([83.01226154775827,25.282199680759867]), {'name': '34: Gangotri Vihar Colony'}),
+    ee.Feature(
+        ee.Geometry.Point([83.00985828848093,25.301755677637754]), {'name': '35: Tilbhandeshwer'}),
+    //Kameng
+    ee.Feature(
+        ee.Geometry.Point([93.039239, 27.356833]),
+        {'name': '1: Seppa'}),
+    ee.Feature(
+        ee.Geometry.Point([92.651241, 27.017082]), {'name': '2: Bhalukpong'}),
+    ee.Feature(
+        ee.Geometry.Point([92.876711, 26.811461]),
+        {'name': '3: Jia Bharali'}),
+    //Brahmaputra
+    ee.Feature(
+        ee.Geometry.Point([94.811587, 27.508455]),
+        {'name': '1: Dibrugarh'}),
+    ee.Feature(
+        ee.Geometry.Point([94.2522,26.8700]), {'name': '2: Nematighat'}),
+    ee.Feature(
+        ee.Geometry.Point([92.771001,26.610661]),
+        {'name': '3: Tezpur'}),
+    ee.Feature(
+        ee.Geometry.Point([91.747524, 26.200867]), {'name': '4: Guwahati (D.C. Court)'}),
+    ee.Feature(
+        ee.Geometry.Point([91.6717, 26.1754709]), {'name': '5: Pandu'}),
+    ee.Feature(
+        ee.Geometry.Point([90.626248, 26.192927]), {'name': '6: Goalpara'}),
+    ee.Feature(
+        ee.Geometry.Point([90.577895,26.201628]), {'name': '7: Pancharatna'}),
+    //Mahanadi
+    ee.Feature(
+        ee.Geometry.Point([82.794027, 21.721748]),
+        {'name': '1: Basantpur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.592005,21.715669]), {'name': '2: Seorinarayan'}),
+    ee.Feature(
+        ee.Geometry.Point([83.268104, 21.689134]),
+        {'name': '3: Kalma'}),
+    ee.Feature(
+        ee.Geometry.Point([83.380536, 21.693367]), {'name': '4: Surajgarh'}),
+    ee.Feature(
+        ee.Geometry.Point([82.395345, 21.641123]), {'name': '5: Kasdol'}),
+    ee.Feature(
+        ee.Geometry.Point([83.845648, 21.552750]), {'name': '6: Hirakud Dam'}),
+    ee.Feature(
+        ee.Geometry.Point([83.894869, 21.309165]), {'name': '7: Deogaon'}),
+    ee.Feature(
+        ee.Geometry.Point([83.899272, 21.185593]), {'name': '8: Baghupalli'}),
+    ee.Feature(
+        ee.Geometry.Point([82.013599, 21.172017]), {'name': '9: Arang'}),
+    ee.Feature(
+        ee.Geometry.Point([81.902679, 20.993271]), {'name': '10: Rajim'}),
+    ee.Feature(
+        ee.Geometry.Point([84.305259, 20.862641]), {'name': '11: Boudh'}),
+    ee.Feature(
+        ee.Geometry.Point([84.086315, 20.827818]), {'name': '12: Khairmal'}),
+    ee.Feature(
+        ee.Geometry.Point([84.780090, 20.598850]), {'name': '13: Tikarpara'}),
+    ee.Feature(
+        ee.Geometry.Point([85.758966, 20.468513]), {'name': '14: Naraj'}),
+    ee.Feature(
+        ee.Geometry.Point([86.079632, 20.429616]), {'name': '15: Kishan Nagar'}),
+    ee.Feature(
+        ee.Geometry.Point([85.083760, 20.415168]), {'name': '16: Gania'}),
+    ee.Feature(
+        ee.Geometry.Point([86.241001, 20.356580]), {'name': '17: Tarapur'}),
+    ee.Feature(
+        ee.Geometry.Point([81.532645, 20.312504]), {'name': '18: Sarangpal'})
+  ];
+  
+var mainchannel = ee.FeatureCollection(waypoints);
+var depthplotmap= require('users/riddickkakati/GEE:AEMS_ALGORITHM_TESTER/Stumpf_Depth_Algorithm/Depth_Add_To_Map');
+var MNDWICalculator= function(image){
+    var green= image.select(1);
+    var SWIR1= image.select(4);
+    var NIR= image.select(3);
+    var red= image.select(2);
+    var blue= image.select(0);
+    var MNDWIimage= green.expression('(green-swir1)/(green+swir1)',{
+      green: green,
+      swir1: SWIR1
+    });
+    var NDVIimage= NIR.expression('(NIR-red)/(NIR+red)',{
+      NIR: NIR,
+      red: red
+    });
+    var EVIimage = NIR.expression('2.5 * (NIR - red) / (1 + NIR + 6 * red - 7.5 * blue)', {
+     NIR: NIR,
+     red: red,
+     blue: blue
+    });
+    var water = (MNDWIimage.gt(NDVIimage).or(MNDWIimage.gt(EVIimage))).and(EVIimage.lt(0.1));
+    var waterMasked = water.updateMask(water.gt(0));
+    return image.mask(waterMasked);
+  };
+var MNDWIimage= MNDWICalculator(Reflectance);
+
+print("MNDWI",MNDWIimage);
+print("Reflectance",Reflectance);
+print("Bathypoints",bathyPoints);
+print("Bathytrain",bathyTrain);
+print("Bathyvalid",bathyValid);
+
+// Select blue and green bands
+var blue = MNDWIimage.select(['B2'],['blue']);
+var green = MNDWIimage.select(['B3'],['green']);
+
+// Take logarithms and ratio the bands
+var bg_ratio = (blue.log()).divide(green.log());
+
+// Get the values for all pixels in each polygon in the training.
+var training = bg_ratio.sampleRegions({
+  // Get the sample from the polygons FeatureCollection.
+  collection: bathyTrain,
+  // Keep this list of properties from the polygons.
+  properties: [depthName],
+  // Set the scale to get Landsat pixels in the polygons.
+  scale: 10,
+})
+  // Add a constant property to each feature to be used as an independent variable.
+  .map(function(feature) {
+  return feature.set('constant', 1);
+});
+
+print(training,'Training');
+
+//  ------------------------------------------------------------------   //
+
+// Compute linear regression coefficients. numX is 2 because
+// there are two independent variables: 'constant' and log blue/green ratio (blue). numY is 1
+// because there is a single dependent variable: depth (F10m). Cast the resulting
+// object to an ee.Dictionary for easy access to the properties.
+var linearRegression = ee.Dictionary(training.reduceColumns({
+  reducer: ee.Reducer.linearRegression({
+    numX: 2,
+    numY: 1
+  }),
+  selectors: ['constant', 'blue', depthName]
+}));
+
+// Convert the coefficients array to a list.
+var coefList = ee.Array(linearRegression.get('coefficients')).toList();
+
+// Extract the y-intercept and slope.
+var yInt = ee.List(coefList.get(0)).get(0); // y-intercept
+var slope = ee.List(coefList.get(1)).get(0); // slope
+
+// Extract the residuals.
+var residuals = ee.Array(linearRegression.get('residuals')).toList().get(0);
+
+// Print results
+print('y-intercept:', yInt);
+print('Slope:', slope);
+print('Residual (RMSE):', residuals)
+
+// Apply bathymetry equation from data
+var depth = bg_ratio.multiply(ee.Number(slope))
+                    .add((ee.Number(yInt)))
+                    
+print(depth,'Depth');
+
+// Extract classification result in validation data
+var validation = depth.sampleRegions({
+  collection: bathyValid,
+  properties: [depthName],
+  scale: 10,
+});
+
+// Gather the log blue/green ratio values from the point sample into a list of lists.
+var props = ee.List(['blue', depthName]);
+var regressionVarsList = ee.List(validation.reduceColumns({
+  reducer: ee.Reducer.toList().repeat(props.size()),
+  selectors: props
+}).get('list'));
+
+// Convert regression x and y variable lists to an array - used later as input
+// to ui.Chart.array.values for generating a scatter plot.
+var x = ee.Array(ee.List(regressionVarsList.get(0)));
+var y1 = ee.Array(ee.List(regressionVarsList.get(1)));
+
+// Apply the line function defined by the slope and y-intercept of the
+// regression to the x variable list to create an array that will represent
+// the regression line in the scatter plot.
+var y2 = ee.Array(ee.List(regressionVarsList.get(0)).map(function(x) {
+  var y = ee.Number(x).multiply(slope).add(yInt);
+  return y;
+}));
+
+// Concatenate the y variables (ratio and predicted depth) into an array
+// for input to ui.Chart.array.values for plotting a scatter plot.
+var yArr = ee.Array.cat([y1, y2], 1);
+
+// Make a scatter plot of the two bands for the point sample and include
+// the least squares line of best fit through the data.
+//To plot R2 values for Lyzenga
+var checkbox2= ui.Button({
+style: {
+      position: 'bottom-right',
+      padding: '5px'
+    },
+label: 'Stumpf Depth Linear Regression',
+onClick: function(){
+  var chart = ui.Chart.array.values({
+  array: y1,
+  axis: 0,
+  xLabels: x})
+  .setChartType('ScatterChart')
+  .setOptions({
+    hAxis: {'title': 'Actual Depth'},
+    vAxis: {'title': 'Estimated Depth', viewWindowMode: 'maximized'},
+    series: {
+      0: {visibleInLegend: true, pointSize: 3, dataOpacity: 0.5},
+      },
+    trendlines: {
+        0: {
+          type: 'linear',
+          color: 'lightblue',
+          lineWidth: 3,
+          opacity: 0.7,
+          showR2: true,
+          visibleInLegend: true,
+        }
+    }
+  });
+
+  var ChartPanel2 = ui.Panel({style: {width: '30%'}});
+  var intro2 = ui.Panel([
+  ui.Label({
+    value: 'Stumpf Depth Regression Analysis',
+    style: {fontSize: '20px', fontWeight: 'bold'}
+  }),
+]);
+
+ui.root.remove(ChartPanel2);
+ChartPanel2.add(intro2);
+ChartPanel2.widgets().set(1, chart);
+ChartPanel2.add(ui.Button({
+        label: 'Close',
+        onClick: function() {
+        ChartPanel2.style().set('shown', false);
+        }
+      }));
+ui.root.add(ChartPanel2);
+}
+});
+Map.add(checkbox2);
+print("Depth",depth);
+
+var clipgeometry= baseplotmap.Add_to_Map(Reflectance,3,'Surface Reflectance');
+var image= ee.Image(depth);//.clip(clipgeometry);//here put i
+var geometry= image.geometry();
+depthplotmap.Add_to_Map(image, geometry,3,'Depth: Stumpf', mainchannel);//here put i
+
+Export.image.toDrive({
+  image: depth,
+  description: 'Linear Depth Map (Stumpf)',
+  scale: 10,
+  region: clipgeometry,
+  maxPixels: 1e9
+  });
+
+/*Export.image.toAsset({
+  image: linearSDB,
+  description: description,
+  assetId: assetId,
+  scale: 10,
+  maxPixels: 551733655,
+});*/

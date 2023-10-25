@@ -1,0 +1,49 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var eu = 
+    /* color: #ffc82d */
+    /* shown: false */
+    /* displayProperties: [
+      {
+        "type": "rectangle"
+      }
+    ] */
+    ee.Geometry.Polygon(
+        [[[92.0523246706315, 27.1783026066151],
+          [92.0523246706315, 26.334654059522244],
+          [94.3814262331315, 26.334654059522244],
+          [94.3814262331315, 27.1783026066151]]], null, false);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+var waypoints = [
+    ee.Feature(
+        ee.Geometry.Point([94.811587, 27.508455]),
+        {'name': '1: Dibrugarh'}),
+    ee.Feature(
+        ee.Geometry.Point([94.2522,26.8700]), {'name': '2: Nematighat'}),
+    ee.Feature(
+        ee.Geometry.Point([92.771001,26.610661]),
+        {'name': '3: Tezpur'}),
+    ee.Feature(
+        ee.Geometry.Point([91.747524, 26.200867]), {'name': '4: Guwahati (D.C. Court)'}),
+    ee.Feature(
+        ee.Geometry.Point([91.6717, 26.1754709]), {'name': '5: Pandu'}),
+    ee.Feature(
+        ee.Geometry.Point([90.626248, 26.192927]), {'name': '6: Goalpara'}),
+    ee.Feature(
+        ee.Geometry.Point([90.577895,26.201628]), {'name': '7: Pancharatna'})
+  ];
+  
+var mainchannel = ee.FeatureCollection(waypoints);
+//Map.addLayer(mainchannel);
+
+//var dataset1 = ee.FeatureCollection(geometry);
+
+// Define a region roughly covering the EU.
+//var eu = ee.Geometry.Rectangle(-26.367188,34.016242,35.332031,73.124945);
+Map.addLayer(eu, {color: '000000'}, 'planar polygon');
+Map.centerObject(eu);
+
+
+// Filter the table geographically: only points in eu
+var filtered = mainchannel.filterBounds(eu);
+print(filtered);
+Map.addLayer(filtered, {}, 'default display');

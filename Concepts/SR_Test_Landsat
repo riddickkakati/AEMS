@@ -1,0 +1,12 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var geometry = /* color: #0b4a8b */ee.Geometry.Point([91.65687164198201, 26.174095795195193]),
+    L8 = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+var filter = L8.filterBounds(geometry).filterDate('2021-02-01','2021-05-01').filterMetadata('CLOUD_COVER','less_than',7);//.select(ee.List.sequence(0,10));//selecting first 11 bands only as the 12th band is quality assessment band which has no application in this atmospheric correction code
+  function CloudRemoval (image) {
+    var removecloud = image.mask(image.select('QA_PIXEL').eq(21824));
+    return removecloud;
+  }
+  filter = filter.map(CloudRemoval);
+  filter = filter.select(ee.List.sequence(0,10));
+  print(filter);

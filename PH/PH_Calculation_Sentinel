@@ -1,0 +1,46 @@
+exports.PH_Sentinel= function(imageCollection){
+ var MNDWICalculator= function(image){
+    var green= image.select(1);
+    var SWIR1= image.select(4);
+    var NIR= image.select(3);
+    var red= image.select(2);
+    var blue= image.select(0);
+    var MNDWIimage= green.expression('(green-swir1)/(green+swir1)',{
+      green: green,
+      swir1: SWIR1
+    });
+    var NDVIimage= NIR.expression('(NIR-red)/(NIR+red)',{
+      NIR: NIR,
+      red: red
+    });
+    var EVIimage = NIR.expression('2.5 * (NIR - red) / (1 + NIR + 6 * red - 7.5 * blue)', {
+     NIR: NIR,
+     red: red,
+     blue: blue
+    });
+    var water = (MNDWIimage.gt(NDVIimage).or(MNDWIimage.gt(EVIimage))).and(EVIimage.lt(0.1));
+    var waterMasked = water.updateMask(water.gt(0));
+    return image.mask(waterMasked);
+  };
+  
+  var PHcalc= function(image){
+    var rededge2= image.select(4);
+    var red= image.select(2);
+    var rededge3= image.select(5);
+    var NIR= image.select(6);
+    var fraction1= rededge2.divide(red.subtract(NIR));
+    var fraction2= rededge3.divide(rededge2);
+    var constant= ee.Image.constant(4.925);
+    var PH= ((constant).subtract(fraction1.multiply(ee.Number(0.03739)))).add(fraction2.multiply(ee.Number(2.478)));
+    return PH;
+  };
+  var MNDWI= imageCollection.map(MNDWICalculator);
+  var MNDWIextract= MNDWI.select('B[1-9]');
+  print('MNDWI Images',MNDWIextract);
+  var PH= MNDWI.map(PHcalc).select(['constant'],['Acidity']);
+  //print(PH,'pH');
+
+return ee.Feature(null,{
+  Acidity: PH
+});
+};

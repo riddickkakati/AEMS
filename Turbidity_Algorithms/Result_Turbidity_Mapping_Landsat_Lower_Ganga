@@ -1,0 +1,506 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var L8 = ee.ImageCollection("LANDSAT/LC08/C01/T1"),
+    Ganeshpahar = /* color: #d63000 */ee.Geometry.Point([82.7438, 25.149]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+/*var waypoints = [
+    ee.Feature(
+        ee.Geometry.Point([78.44611111, 30.72833333]),
+        {'name': '1: Uttarkashi'}),
+    ee.Feature(
+        ee.Geometry.Point([78.59694444, 30.14138889]), {'name': '1: Deoprayag'}),
+    ee.Feature(
+        ee.Geometry.Point([78.30388889, 30.10083333]),
+        {'name': '3: Rishikesh'}),
+    ee.Feature(
+        ee.Geometry.Point([78.14166667, 28.76666667]), {'name': '2: Garhmukteshwar'}),
+    ee.Feature(
+        ee.Geometry.Point([78.86055556, 27.93194444]), {'name': '3: Kachlabridge'}),
+    ee.Feature(
+        ee.Geometry.Point([79.62500000, 27.40416667]), {'name': '4: Fatehgarh'}),
+    ee.Feature(
+        ee.Geometry.Point([80.03611111, 26.93472222]), {'name': '5: Ankinghat'}),
+    ee.Feature(
+        ee.Geometry.Point([80.37638889, 26.46944444]), {'name': '6: Kanpur'}),
+    ee.Feature(
+        ee.Geometry.Point([80.85416667, 26.04305556]), {'name': '7: Bhitaura'}),
+    ee.Feature(
+        ee.Geometry.Point([81.91638889, 25.39305556]), {'name': '8: Chhatnag Allahabad'}),
+    ee.Feature(
+        ee.Geometry.Point([82.53027778, 25.15611111]), {'name': '9: Mirzapur'}),
+    ee.Feature(
+        ee.Geometry.Point([83.03750000, 25.32361111]), {'name': '10: Varanasi'}),
+    ee.Feature(
+        ee.Geometry.Point([87.93111111, 24.80388889]), {'name': '11: Farakka'})
+  ];
+ */
+ 
+var waypoints = [
+    ee.Feature(
+        ee.Geometry.Point([82.5472239713342,25.155617214567048]),
+        {'name': '1: Majhgawan'}),
+    ee.Feature(
+        ee.Geometry.Point([82.57477562233518,25.15693794105981]), {'name': '2: Digur Patti'}),
+    ee.Feature(
+        ee.Geometry.Point([82.59418626162268,25.177841634896115]),
+        {'name': '3: Jiutia Patti'}),
+    ee.Feature(
+        ee.Geometry.Point([82.57828044538665,25.192608310967888]), {'name': '4: Dev Parwa'}),
+    ee.Feature(
+        ee.Geometry.Point([82.56437587385345,25.21823560583664]), {'name': '5: Mujehara Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([82.58686351423431,25.22693212786083]), {'name': '6: Bhogaon'}),
+    ee.Feature(
+        ee.Geometry.Point([82.60986613874603,25.230193163307217]), {'name': '7: Gaharwari'}),
+    ee.Feature(
+        ee.Geometry.Point([82.63767528181243,25.223515711219065]), {'name': '8: Kolahalpur Tari'}),
+    ee.Feature(
+        ee.Geometry.Point([82.65896129255462,25.210470328676827]), {'name': '9: Chapaurkalan'}),
+    ee.Feature(
+        ee.Geometry.Point([82.68436717634368,25.19338497492027]), {'name': '10: Jausara'}),
+    ee.Feature(
+        ee.Geometry.Point([82.70530986433197,25.17256866915564]), {'name': '11: Ratanbo'}),
+    ee.Feature(
+        ee.Geometry.Point([82.72556590681243,25.15765330901778]), {'name': '12: Babu Patali'}),
+    ee.Feature(
+        ee.Geometry.Point([82.7509717906015,25.14335771078932]), {'name': '13: Nanhupur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.7732877696054,25.129060438248413]), {'name': '14: Bargawan'}),
+    ee.Feature(
+        ee.Geometry.Point([82.80487346296478,25.1172483855261]), {'name': '15: Bhelampur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.83783244733978,25.111652804139112]), {'name': '16: Shilpi'}),
+    ee.Feature(
+        ee.Geometry.Point([82.86838817243743,25.122921421784284]), {'name': '17: Ishwarpatti'}),
+    ee.Feature(
+        ee.Geometry.Point([82.88263606672454,25.144833964224247]), {'name': '18: Chak Ghariyari'}),
+    ee.Feature(
+        ee.Geometry.Point([82.88933086042572,25.16969449686727]), {'name': '19: Sultanpur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.90169047956634,25.18771521419141]), {'name': '20: Marahachh'}),
+    ee.Feature(
+        ee.Geometry.Point([82.91473674421478,25.201384325394876]), {'name': '21: Rudauli'}),
+    ee.Feature(
+        ee.Geometry.Point([82.93155955915618,25.206276872974367]), {'name': '22: Betwar'}),
+    ee.Feature(
+        ee.Geometry.Point([82.94247609678732,25.20780589388793]), {'name': '23: Chitanuni'}),
+    ee.Feature(
+        ee.Geometry.Point([82.95318609506731,25.20828363913932]), {'name': '24: Madhopur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.96442991525774,25.20859426532098]), {'name': '25: Muradev'}),
+    ee.Feature(
+        ee.Geometry.Point([82.97515875131731,25.208050668982843]), {'name': '26: Tarapur'}),
+    ee.Feature(
+        ee.Geometry.Point([82.9854584339345,25.208050668982843]), {'name': '27: Sarai Dangari Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([82.99910551340227,25.20859426532098]), {'name': '28: Tikari'}),
+    ee.Feature(
+        ee.Geometry.Point([83.01343923837786,25.21457366479582]), {'name': '29: Narottampur Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([83.0213356617177,25.221639849002305]), {'name': '30: Hakanipur Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([83.02966123849993,25.234761673500323]), {'name': '31: Mirzapur Khurd'}),
+    ee.Feature(
+        ee.Geometry.Point([83.02880293161516,25.24873602378006]), {'name': '32: Milkipur'}),
+    ee.Feature(
+        ee.Geometry.Point([83.02124983102922,25.26612408176351]), {'name': '33: Patel Nagar Colony'}),
+    ee.Feature(
+        ee.Geometry.Point([83.01226154775827,25.282199680759867]), {'name': '34: Gangotri Vihar Colony'}),
+    ee.Feature(
+        ee.Geometry.Point([83.00985828848093,25.301755677637754]), {'name': '35: Tilbhandeshwer'})
+  ];
+ 
+var mainchannel = ee.FeatureCollection(waypoints);
+//Variables and imports **Enter Imports**
+exports.Result_Turb_Landsat_LowGang= function(startdateimport,enddateimport){
+  var atmprocess= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Landsat_Atmospheric_Corrections/Landsat_SR_DOS_GISAGMAPS_METHOD');
+  var baseplotmap= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Turbidity_Algorithms/Basemap_Add_To_Map');
+  var turbplotmap= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Turbidity_Algorithms/Turbidity_Add_To_Map');
+  var startdate= ee.String(startdateimport);//startdate,enddate: Time Period of Study**Enter**
+  var enddate= ee.String(enddateimport);//**Enter**
+  var cloudcover= ee.Number(7);//Maximum Cloud Cover**Enter**
+  //**Enter var i below**
+  var i= ee.Number(0).toInt();//Put the image number required here. As array index start from zero so the first image number will be zero.
+  var Reflectance= atmprocess.Landsat_SR_DOS_GISMAPS(L8,Ganeshpahar,startdate,enddate,cloudcover,1);
+  var turbcalc= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Turbidity_Algorithms/Turbidity_Calculation_Landsat');
+  var LandsatImageCollectionUsed= L8.filterBounds(Ganeshpahar).filterDate(startdate,enddate).filterMetadata('CLOUD_COVER','less_than',cloudcover);
+  var turb = ee.ImageCollection(turbcalc.Turbidity_Landsat(Reflectance).get('Turbidity'));
+  var ReflectanceList= Reflectance.toList(Reflectance.size());
+  var LandsatImageCollectionUsedList= LandsatImageCollectionUsed.toList(LandsatImageCollectionUsed.size());
+  var turblist= turb.toList(turb.size());
+  
+  print(turb, 'Turbidity');
+  
+  Export.image.toDrive({
+  image: turb.first(),
+  description: 'Turbidity Image',
+  scale: 10,
+  region: Reflectance.geometry(),
+  maxPixels: 1e9
+  });
+  
+ 
+  //Map styling
+  
+  var panel= ui.Panel({
+    style: {
+      position: 'top-center',
+      padding: '5px'
+    }
+  });
+  var title= ui.Label({
+    value: 'Image Tile Name:\t'+ ee.Image(LandsatImageCollectionUsedList.get(i)).get('BPF_NAME_OLI').getInfo() +'\nGeometry Imports Coordinates: \t('+ Ganeshpahar.coordinates().get(0).getInfo()+','+Ganeshpahar.coordinates().get(1).getInfo()+')',
+    style: {
+      fontSize: '14px',
+      fontWeight: 'bold',
+      margin: '0px',
+      whiteSpace: 'pre',
+      textAlign: 'center'
+    }
+  });
+  panel.add(title);
+  
+    var clipimage= ee.Image(ReflectanceList.get(i));
+    var clipgeometry= baseplotmap.Add_to_Map(clipimage,3,'Surface Reflectance');
+    var image= ee.Image(turblist.get(i)).clip(clipgeometry);//here put i
+    var geometry= image.geometry();
+    turbplotmap.Add_to_Map(image, geometry,3,'Turbidity', mainchannel);//here put i
+    
+    //Fluvial Features start
+    // Workflow from Figure 4 of WIREs Water manuscript
+    
+    // Code developed for active river channel extraction from tropical river systems (example for Philippines). 
+    
+    // Provides: (i) true and false colour image collection GIFs; (ii) true and false colour temporal composite images (cloud-masked, median reducer); and (iii) wetted channel, alluvial deposits, and (cleaned) binary active channel mask.
+    
+    // To run: (1) define the region of interest (roi), (2) adjust the temporal filter and (3) (optionally) modify the classification parameters.  
+    
+    // (1) Define region of interest (roi): either use the area provided, or uncomment the code below and draw a polygon on the map (rename the polygon 'roi').
+    /*var roi = ee.Geometry.Polygon([
+      [[121.6636076429711,17.655075483873333], 
+      [121.75836472304923,17.655075483873333],
+      [121.75836472304923,17.839494424963217], 
+      [121.6636076429711,17.839494424963217], 
+      [121.6636076429711,17.655075483873333]]]);
+    Map.centerObject(roi)*/
+    
+    // (2) Define time filter (change the start and end dates):
+    var sDate_T1 = "2019-01-01"; 
+    var eDate_T1 = "2020-01-01"; 
+    
+    // (3) Optionally modify the classification parameters:
+    var mndwi_param = -0.40;
+    var ndvi_param = 0.20;
+    var cleaning_pixels = 100;
+    
+    // Now, press the 'Run' button and results will appear on the map, in the console and ready for export to Google Drive.
+    
+    
+    
+    
+    
+    // Workflow code (no edits needed below this point)
+    
+    // Standardise band names, merge Landsat data: 
+    var bn8 = ['B1', 'B2', 'B3', 'B4', 'B6', 'pixel_qa', 'B5', 'B7'];
+    var bn7 = ['B1', 'B1', 'B2', 'B3', 'B5', 'pixel_qa', 'B4', 'B7'];
+    var bn5 = ['B1', 'B1', 'B2', 'B3', 'B5', 'pixel_qa', 'B4', 'B7'];
+    var bns = ['uBlue', 'Blue', 'Green', 'Red', 'Swir1', 'BQA', 'Nir', 'Swir2'];
+    var ls5 = ee.ImageCollection("LANDSAT/LT05/C01/T1_SR").select(bn5, bns);
+    var ls7 = (ee.ImageCollection("LANDSAT/LE07/C01/T1_SR")
+      .filterDate('1999-04-15', '2003-05-30')
+      .select(bn7, bns));
+    var ls8 = ee.ImageCollection("LANDSAT/LC08/C01/T1_SR").select(bn8, bns);
+    var merged = ls5.merge(ls7).merge(ls8).filterDate(sDate_T1, eDate_T1) 
+                     .filterBounds(clipgeometry);
+    
+    // Set functions for classification:
+    var Ndvi = function(image) {
+      // calculate normalized difference vegetation index
+      var ndvi = image.normalizedDifference(['Nir', 'Red']).rename('ndvi');
+      return(ndvi);
+    };
+    
+    var Lswi = function(image) {
+      // calculate land surface water index
+      var lswi = image.normalizedDifference(['Nir', 'Swir1']).rename('lswi');
+     return(lswi);
+    };
+    
+    var Mndwi = function(image) {
+      // calculate modified normalized difference water index
+      var mndwi = image.normalizedDifference(['Green', 'Swir1']).rename('mndwi');
+      return(mndwi);
+    };
+    
+    var Evi = function(image) {
+      // calculate the enhanced vegetation index
+      var evi = image.expression('2.5 * (Nir - Red) / (1 + Nir + 6 * Red - 7.5 * Blue)', {
+        'Nir': image.select(['Nir']),
+        'Red': image.select(['Red']),
+        'Blue': image.select(['Blue'])
+        });
+      return(evi.rename(['evi']));
+    };
+    
+    
+    // SetvVisualisation parameters:
+    var params_true = {crs: 'EPSG:4326', region: clipgeometry, min: 0.0, max: 0.3, bands: ["Red", "Green", "Blue"], dimensions: 1000};
+    var params_false = {crs: 'EPSG:4326', region: clipgeometry, min: 0.0, max: 0.3, bands: ["Swir1", "Red", "Green"], dimensions: 1000};
+    var params_waterViz = {crs: 'EPSG:4326', region: clipgeometry, min: 0, max: 1, palette: ['white', 'blue'],dimensions: 1000};
+    var params_activebeltViz = {crs: 'EPSG:4326', region: clipgeometry, min: 0, max: 1, palette: ['white', 'grey'],dimensions: 1000};
+    var params_activeViz = {crs: 'EPSG:4326', region: clipgeometry, min: 0, max: 1, palette: ['white', 'grey'],dimensions: 1000};
+    
+    var waterViz = {min: 0, max: 1, palette: ['white', 'blue']};
+    var activebeltViz = {min: 0, max: 1, palette: ['white', 'grey']};
+    var activeViz = {min: 0, max: 1, palette: ['white', 'MediumOrchid ']};
+    var active_cleanedViz = {min: 0, max: 1, palette: ['white', 'OrangeRed ']};
+    
+    // Filter date range, roi and apply simple cloud processing:
+    var imgCol = merged.map(function(image) { 
+                        var cloudShadowBitMask = 1 << 3; 
+                        var cloudsBitMask = 1 << 5; 
+                        var qa = image.select('BQA'); 
+                        var mask = qa.bitwiseAnd(cloudShadowBitMask).eq(0) 
+                                     .and(qa.bitwiseAnd(cloudsBitMask).eq(0)); 
+                        return image.updateMask(mask).multiply(0.0001).clip(clipgeometry)
+                       }); 
+                       
+    print(imgCol.size(),'T1: Number of Landsat tiles used'); 
+    
+    // Define and rename quantiles of interest:
+    var bnp50 = ['uBlue_p50', 'Blue_p50', 'Green_p50', 'Red_p50', 'Swir1_p50', 'BQA_p50', 'Nir_p50', 'Swir2_p50'];
+    var p50 = imgCol.reduce(ee.Reducer.percentile([50])).select(bnp50, bns);
+    
+    // Sort image collection for GIF:
+    var sorted = imgCol.sort('CLOUD_COVER');
+    var scene = sorted.first().multiply(0.0001);
+    
+    // Apply to each percentile:
+    var mndwi_p50 = Mndwi(p50);
+    var ndvi_p50 = Ndvi(p50);
+    var evi_p50 = Evi(p50);
+    var lswi_p50 = Lswi(p50);
+    
+    // Water classification from (Zou 2018):
+    var water_p50 = (mndwi_p50.gt(ndvi_p50).or(mndwi_p50.gt(evi_p50))).and(evi_p50.lt(0.1));
+    var waterMasked_p50 = water_p50.updateMask(water_p50.gt(0));
+    
+    // Active river belt classification:
+    var activebelt_p50 = (mndwi_p50.gte(mndwi_param)).and(ndvi_p50.lte(ndvi_param));
+    var activebeltMasked_p50 = activebelt_p50.updateMask(activebelt_p50.gt(0));
+    var active_p50 = (water_p50).or(activebelt_p50);
+    
+    // Clean binary active channel:
+    var smooth_map_p50 = active_p50
+               .focal_mode({
+               radius: 10, kernelType: 'octagon', units: 'pixels', iterations: 1
+               })
+               .mask(active_p50.gte(1));
+    
+    var noise_removal_p50 = active_p50
+                .updateMask(active_p50.connectedPixelCount(cleaning_pixels, false).gte(cleaning_pixels))
+                .unmask(smooth_map_p50);
+                                
+    var noise_removal_p50_Masked = noise_removal_p50.updateMask(noise_removal_p50.gt(0));
+    
+    
+    // Define outputs:
+    var True_colour = p50.select(["Red", "Green", "Blue"]);
+    var False_colour = p50.select(["Swir1", "Red", "Green"]);
+    var Wetted_channel = waterMasked_p50;
+    var Alluvial_deposits = activebeltMasked_p50;
+    var Active_channel_binary_mask = noise_removal_p50_Masked;
+    
+    var cloudy = merged.filterDate(sDate_T1, eDate_T1) 
+                     .filterBounds(clipgeometry)
+                     .map(function(image) { 
+                        return image.multiply(0.0001).clip(clipgeometry)
+                       }); 
+    
+    // Display on map:
+    Map.addLayer(True_colour.clip(clipgeometry), params_true, 'True colour temporal composite', false);
+    Map.addLayer(False_colour.clip(clipgeometry), params_false, 'False colour temporal composite', false);
+    Map.addLayer(Wetted_channel, waterViz, 'Wetted channel', false);
+    Map.addLayer(Alluvial_deposits, activebeltViz, 'Alluvial deposits', false);
+    Map.addLayer(Active_channel_binary_mask, activebeltViz, 'Active channel binary mask', false);
+    
+    // Print to console:
+    print(ui.Thumbnail(cloudy, params_true),"True colour image collection GIF"); 
+    print(ui.Thumbnail(cloudy, params_false),"False colour image collection GIF"); 
+    print(ui.Thumbnail(True_colour, params_true),"True colour temporal composite image"); 
+    print(ui.Thumbnail(False_colour, params_false),"False colour temporal composite image"); 
+    print(ui.Thumbnail(Wetted_channel, params_waterViz),"Wetted channel"); 
+    print(ui.Thumbnail(Alluvial_deposits, params_activebeltViz),"Alluvial deposits"); 
+    print(ui.Thumbnail(Active_channel_binary_mask, params_activeViz),"Cleaned binary active channel"); 
+    
+    // Export to Google Drive (example):
+    Export.image.toDrive({  
+      image: Active_channel_binary_mask, 
+      description: 'Active_channel_binary_mask',
+      region: clipgeometry,
+      scale: 30,
+      fileFormat: 'GeoTIFF',  
+      folder: 'GEE_Example_Workflow',
+      maxPixels: 1e12,  
+    }); 
+
+    //Fluvial Features end
+    
+    //JRC layer add
+    var JRC = ee.Image('JRC/GSW1_3/GlobalSurfaceWater');
+    JRC= JRC.clip(clipgeometry)
+    var JRC1= JRC.select('transition');
+    var JRC2= JRC.select('seasonality')
+
+    var visualization1 = {
+      bands: ['transition'],
+      min: 0.0,
+      max: 12.0,
+      palette: ['ffffff', '0000ff', '22b14c','d1102d', '99d9ea', 'b5e61d',  'e6a1aa', 'ff7f27', 'ffc90e', '7f7f7f',  'c3c3c3']
+    };
+    
+    var visualization2= {
+      bands: ['seasonality'],
+      min: 0.0,
+      max: 12.0,
+      palette: ['ffffff', 'ffbbbb', '0000ff']
+    };
+    
+    
+    Map.addLayer(JRC1, visualization1, 'Transition',false);
+    Map.addLayer(JRC2, visualization2, 'Seasonality',false);
+    
+    
+    // set position of panel
+    var legend1 = ui.Panel({
+      style: {
+        position: 'bottom-right',
+        padding: '8px 15px'
+      }
+    });
+     
+    // Create legend title
+    var legendTitle1 = ui.Label({
+      value: 'JRC Transition',
+      style: {
+        fontWeight: 'bold',
+        fontSize: '18px',
+        margin: '0 0 4px 0',
+        padding: '0'
+        }
+    });
+     
+    // Add the title to the panel
+    legend1.add(legendTitle1);
+     
+    // Creates and styles 1 row of the legend.
+    var makeRow = function(color, name) {
+     
+          // Create the label that is actually the colored box.
+          var colorBox = ui.Label({
+            style: {
+              backgroundColor: '#' + color,
+              // Use padding to give the box height and width.
+              padding: '8px',
+              margin: '0 0 4px 0'
+            }
+          });
+     
+          // Create the label filled with the description text.
+          var description = ui.Label({
+            value: name,
+            style: {margin: '0 0 4px 6px'}
+          });
+     
+          // return the panel
+          return ui.Panel({
+            widgets: [colorBox, description],
+            layout: ui.Panel.Layout.Flow('horizontal')
+          });
+    };
+     
+    //  Palette with the colors
+    var palette =['ffffff', '0000ff', '22b14c','d1102d', '99d9ea', 'b5e61d',  'e6a1aa', 'ff7f27', 'ffc90e', '7f7f7f',  'c3c3c3'];
+     
+    // name of the legend
+    var names = ['No change','Permanent','New permanent', 'Seasonal', 'New seasonal', 'Lost seasonal', 'Lost permanent', 'Seasonal to permanent', 'Permanent to seasonal', 'Ephemeral permanent', 'Ephemeral seasonal'];
+     
+    // Add color and and names
+    for (var k = 0; k < 11; k++) {
+      legend1.add(makeRow(palette[k], names[k]));
+    }   
+     
+    // add legend to map (alternatively you can also print the legend to the console)
+    Map.add(legend1);
+    
+    function makeColorBarParams(palette) {
+    return {
+      bbox: [0, 0, 1, 0.1],
+      dimensions: '100x10',
+      format: 'png',
+      min: 0,
+      max: 1,
+      palette: palette,
+      };
+    }
+    var visualization3= ee.Dictionary({
+        'min': 0.0,
+        'max': 12.0,
+        'palette': ['ffffff', 'ffbbbb', '0000ff']
+      });
+    var colorBar = ui.Thumbnail({
+      image: ee.Image.pixelLonLat().select(0),
+      params: makeColorBarParams(visualization3.get('palette')),
+      style: {stretch: 'horizontal', margin: '0px 8px', maxHeight: '24px'},
+    });
+    var legendLabels = ui.Panel({
+      widgets: [
+        ui.Label('Seasonal', {margin: '4px 8px'}),
+        ui.Label('Permanent', {margin: '4px 8px'})
+      ],
+      layout: ui.Panel.Layout.flow('horizontal')
+    });
+    
+    var legendTitle = ui.Label({
+      value: 'JRC Seasonality',
+      style: {fontWeight: 'bold'}
+    });
+    var legendPanel = ui.Panel({
+      widgets: [legendTitle, colorBar, legendLabels],
+      style:{
+      position: 'bottom-right'
+    }
+    });
+    Map.add(legendPanel);
+      
+    //end JRC layer
+    //Map.add(panel);
+};
+  /*
+  //Coordinates of survey on March 2 2021
+  var point1 = ee.Geometry.Point([92.04111111, 26.24916667]);
+  var point2 = ee.Geometry.Point([92.01277778, 26.27944444]);//No chlorophyll
+  var point3 = ee.Geometry.Point([92.04083333, 26.24888889]);
+  var point4 = ee.Geometry.Point([92.01833333, 26.28861111]);
+  var point5 = ee.Geometry.Point([92.01277778, 26.27944444]);
+  
+  Map.addLayer({
+    eeObject: point1,
+    name: '92.04111111, 26.24916667'
+  });
+  Map.addLayer({
+    eeObject: point2,
+    name: '92.01277778, 26.27944444 (No Chlorophyll)'
+  });
+  Map.addLayer({
+    eeObject: point3,
+    name: '92.04083333, 26.24888889'
+  });
+  Map.addLayer({
+    eeObject: point4,
+    name: '92.01833333, 26.28861111'
+  });
+  Map.addLayer({
+    eeObject: point5,
+    name: '92.01277778, 26.27944444'
+  });*/

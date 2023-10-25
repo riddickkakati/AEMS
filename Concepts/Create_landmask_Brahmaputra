@@ -1,0 +1,117 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var POI = /* color: #98ff00 */ee.Geometry.Point([91.66456654358883, 26.177119617144612]),
+    boundary = 
+    /* color: #0b4a8b */
+    /* displayProperties: [
+      {
+        "type": "rectangle"
+      }
+    ] */
+    ee.Geometry.Polygon(
+        [[[90.13584586594581, 26.801797127472348],
+          [90.13584586594581, 25.51496424223196],
+          [93.21201774094581, 25.51496424223196],
+          [93.21201774094581, 26.801797127472348]]], null, false);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+
+
+// Script to create land mask from Sentinel 2 data in Belize
+/* 
+
+Requirements (Imports needed above)
+  'POI'            = Point of interest
+  'boundary'       = Feature polygon - Draw below of area of interest to discard inland water
+
+Parameters:                                                   Defaults
+  'START_DATE'            = yyyy-mm-dd                          2016-01-01
+  'END_DATE'              = yyyy-mm-dd                          2020-12-01
+  'MAX_CLOUD_PROBABILITY' = threshold to mask clouds            3 (3% cloud probability)
+  'NIR_thres'             = Value for near-infrared threshold   500 (80% training, 20% Validation)
+                            for land / water 
+Output:
+  'description'           = description of output raster       'CME_workshop_Belize_bathy_lyzgena',
+  'assetId'               = id of output raster                'CME_workshop_Belize_bathy_lyzgena',
+*/
+
+var START_DATE = '2016-01-01';     // Wider date range used as we assume no
+var END_DATE = '2020-12-31';       // l and has changed within 5 years
+var MAX_CLOUD_PROBABILITY = 3;              // More data available means we can use a tougher mask
+var NIR_thres = 500 
+
+// Outputs
+var description = 'Brahmaputra_landmask'
+var assetId = 'Brahmaputra_landmask'
+
+//  ------------------------------------------------------------------   //
+
+// Create Sentinel 2 composite //
+
+var s2Sr = ee.ImageCollection('COPERNICUS/S2_SR');
+var s2Clouds = ee.ImageCollection('COPERNICUS/S2_CLOUD_PROBABILITY');
+
+function maskClouds(img) {
+  var clouds = ee.Image(img.get('cloud_mask')).select('probability');
+  var isNotCloud = clouds.lt(MAX_CLOUD_PROBABILITY);
+  return img.updateMask(isNotCloud);
+}
+
+// The masks for the 10m bands sometimes do not exclude bad data at
+// scene edges, so we apply masks from the 20m and 60m bands as well.
+// Example asset that needs this operation:
+// COPERNICUS/S2_CLOUD_PROBABILITY/20190301T000239_20190301T000238_T55GDP
+function maskEdges(s2_img) {
+  return s2_img.updateMask(
+      s2_img.select('B8A').mask().updateMask(s2_img.select('B9').mask()));
+}
+
+// Filter input collections by desired data range and region.
+var criteria = ee.Filter.and(
+    ee.Filter.bounds(POI), ee.Filter.date(ee.Date(START_DATE), ee.Date(END_DATE)));
+s2Sr = s2Sr.filter(criteria).map(maskEdges);
+s2Clouds = s2Clouds.filter(criteria);
+
+// Join S2 SR with cloud probability dataset to add cloud mask.
+var s2SrWithCloudMask = ee.Join.saveFirst('cloud_mask').apply({
+  primary: s2Sr,
+  secondary: s2Clouds,
+  condition:
+      ee.Filter.equals({leftField: 'system:index', rightField: 'system:index'})
+});
+
+var s2Collection = ee.ImageCollection(s2SrWithCloudMask).map(maskClouds)
+var s2CloudMasked = s2Collection.median();
+
+print ('Number of image used in collection: ', s2Collection.size())
+
+//  ------------------------------------------------------------------   //
+
+// Create Land mask //
+
+// Select near-infrared band
+var b8 = s2CloudMasked.select('B8')
+
+// Use threshold to define land and water boundary
+var landmask = b8.where(b8.gt(NIR_thres),0).where(b8.lt(NIR_thres),1);
+
+//  ------------------------------------------------------------------   //
+
+// Add Layers to Map //
+
+// Visualisation Parameters
+var rgbVis = {min: 0, max: 3000, bands: ['B8']};
+
+Map.addLayer(s2CloudMasked, rgbVis, 'S2 NIR Band')
+Map.addLayer(landmask.clip(boundary), {bands: ['B8'], gamma: 1, max: 1, opacity: 1},'S2 Land Mask')
+
+//  ------------------------------------------------------------------   //
+
+// Export the image to an Earth Engine asset //
+
+Export.image.toAsset({
+  image: landmask,
+  region: boundary,
+  description: description,
+  assetId: assetId,
+  scale: 10,
+  maxPixels: 551733655,
+});

@@ -1,0 +1,209 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var POI = /* color: #d63000 */ee.Geometry.Point([91.66392801185319, 26.17626095941182]),
+    bathy_points = ee.FeatureCollection("users/riddickkakati/GEE_Bathymetry_Brahmaputra_12_2021"),
+    landmask = ee.Image("users/riddickkakati/Brahmaputra_landmask");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+
+
+
+// Script to create bathymetry layer from Sentinel 2 data in Belize using Lyzenga 1978
+/* 
+
+Requirements (Imports needed above)
+  'bathyPoints'    = Bathymetry points
+  'POI'            = Point of interest
+  'landmask'       = (See 'Create_landmask')
+
+Parameters:                                                   Defaults
+  'start_date'            = yyyy-mm-dd                          2016-01-01
+  'end_date'              = yyyy-mm-dd                          2020-12-01
+  'MAX_CLOUD_PROBABILITY' = threshold to mask clouds            8 (8% cloud probability)
+  'split'                 = Ratio of training/validation data   0.8 (80% training, 20% Validation)
+  'depthName'             = Name of depth field in bathy table  F10m
+
+Output:
+  'description'           = description of output raster       'CME_workshop_Belize_bathy_lyzgena',
+  'assetId'               = id of output raster                'CME_workshop_Belize_bathy_lyzgena',
+*/
+
+var START_DATE = '2021-11-01';
+var END_DATE = '2022-01-01';
+var MAX_CLOUD_PROBABILITY = 5;
+var split = 0.8;
+var depthName = 'F10m'
+
+var description = 'CME_workshop_Belize_bathy_lyzgena'
+var assetId = 'CME_workshop_Belize_bathy_lyzgena'
+
+//  ------------------------------------------------------------------   //
+
+// Create Sentinel 2 composite //
+
+// Import Sentinel 2 and Cloud Probability Layers
+var s2Sr = ee.ImageCollection('COPERNICUS/S2_SR');
+var s2Clouds = ee.ImageCollection('COPERNICUS/S2_CLOUD_PROBABILITY');
+
+// Function to mask clouds in S2 image using cloud probability
+function maskClouds(img) {
+  var clouds = ee.Image(img.get('cloud_mask')).select('probability');
+  var isNotCloud = clouds.lt(MAX_CLOUD_PROBABILITY);
+  return img.updateMask(isNotCloud);
+}
+
+// Filter input collections by desired data range and region.
+var criteria = ee.Filter.and(ee.Filter.bounds(POI), ee.Filter.date(ee.Date(START_DATE), ee.Date(END_DATE)));
+s2Sr = s2Sr.filter(criteria);
+s2Clouds = s2Clouds.filter(criteria);
+
+// Join S2 SR with cloud probability dataset to add cloud mask.
+var s2SrWithCloudMask = ee.Join.saveFirst('cloud_mask').apply({
+  primary: s2Sr,
+  secondary: s2Clouds,
+  condition:
+      ee.Filter.equals({leftField: 'system:index', rightField: 'system:index'})
+});
+
+// Apply cloud mask over all Sentinel 2 images and take median
+var s2CloudMasked = ee.ImageCollection(s2SrWithCloudMask).map(maskClouds).median();
+
+//  ------------------------------------------------------------------   //
+
+// Split bathymetry data to training/validation
+var bathyPoints = ee.FeatureCollection(bathy_points.randomColumn('random').sort('random'))
+var bathyTrain = bathyPoints.filter(ee.Filter.lt('random', split));
+var bathyValid = bathyPoints.filter(ee.Filter.gte('random', split));
+print(bathyTrain,"Train");
+print(bathyValid,"Valid");
+
+// Mask Belize RGB image using landmask data and clip to boundary
+var Belize_masked = s2CloudMasked.updateMask(landmask).clip(landmask.geometry());
+
+// Select optical bands and take log
+var logBands = Belize_masked.select(['B2', 'B3', 'B4'],['blue', 'green', 'red']).log()
+
+//  ------------------------------------------------------------------   //
+
+// Get the values for all pixels in each polygon in the training.
+var training = logBands.sampleRegions({
+  // Get the sample from the polygons FeatureCollection.
+  collection: bathyTrain,
+  // Keep this list of properties from the polygons.
+  properties: [depthName],
+  // Set the scale to get Landsat pixels in the polygons.
+  scale: 10,
+  tileScale: 16
+})
+  // Add a constant property to each feature to be used as an independent variable.
+  .map(function(feature) {
+  return feature.set('constant', 1);
+});
+
+print(training,'Training');
+
+//  ------------------------------------------------------------------   //
+
+// Compute linear regression coefficients. numX is 4 because
+// there are four independent variables; constant, blue, green and red. numY is 1
+// because there is one dependent variable: recorded depth. Cast the resulting
+// object to an ee.Dictionary for easy access to the properties.
+var linearRegression = ee.Dictionary(training.reduceColumns({
+  reducer: ee.Reducer.linearRegression({
+    numX: 4,
+    numY: 1
+  }),
+  selectors: ['constant', 'blue', 'green', 'red', depthName]
+}));
+
+print(linearRegression,'Linear Regression');
+
+// The results are array images that must be flattened for display.
+// These lists label the information along each axis of the arrays.
+var bandNames = [['constant','blue', 'green','red'], // 0-axis variation.
+                 [depthName]]; // 1-axis variation.
+                 
+
+var coefList = ee.Array(linearRegression.get('coefficients')).toList();
+print(coefList);
+
+// Flatten the array images to get multi-band images according to the labels.
+var linearCoefList = ee.Array(linearRegression.get('coefficients')).toList();
+
+// Extract the residuals.
+var residuals = ee.Array(linearRegression.get('residuals')).toList().get(0);
+
+// Print results
+print('y-intercept:', ee.Number(linearCoefList.get(0)));
+print('Coefficients:', linearCoefList);
+print('Residual (RMSE):', residuals)
+
+//  ------------------------------------------------------------------   //
+
+// Apply formulae to linear regression
+/*
+SDB = S2[blue] * coefficient[blue] + 
+      S2[green] * coefficient[green] + 
+      S2[red] * coefficient[red] +
+      yIntercept
+*/
+var linearSDB = (logBands.select(['blue']).multiply(ee.Number(linearCoefList.get(1))))
+                        .add((logBands.select(['green']).multiply(ee.Number(linearCoefList.get(2)))))
+                        .add((logBands.select(['red']).multiply(ee.Number(linearCoefList.get(3)))))
+                        .add(ee.Number(ee.Number(linearCoefList.get(0))))
+
+
+// Extract classification result in validation data
+var linearValidation = linearSDB.select(['blue'], ['depth']).sampleRegions({
+  collection: bathyValid,
+  properties: [depthName],
+  scale: 10,
+  tileScale: 16
+});
+
+// Gather the log blue/green ratio values from the point sample into a list of lists.
+var props = ee.List(['depth', depthName]);
+var linearRegVarsList = ee.List(linearValidation.reduceColumns({
+  reducer: ee.Reducer.toList().repeat(props.size()),
+  selectors: props
+}).get('list'));
+
+// Convert regression x and y variable lists to an array - used later as input
+// to ui.Chart.array.values for generating a scatter plot.
+var x = ee.Array(ee.List(linearRegVarsList.get(0)));
+var y1 = ee.Array(ee.List(linearRegVarsList.get(1)));
+
+// Make a scatter plot of the two bands for the point sample and include
+// the least squares line of best fit through the data.
+print(ui.Chart.array.values({
+  array: y1,
+  axis: 0,
+  xLabels: x})
+  .setChartType('ScatterChart')
+  .setOptions({
+    hAxis: {'title': 'Actual Depth'},
+    vAxis: {'title': 'Estimated Depth', viewWindowMode: 'maximized'},
+    series: {
+      0: {visibleInLegend: true, pointSize: 3, dataOpacity: 0.5},
+      },
+    trendlines: {
+        0: {
+          type: 'linear',
+          color: 'lightblue',
+          lineWidth: 3,
+          opacity: 0.7,
+          showR2: true,
+          visibleInLegend: true,
+        }
+    }
+  }))
+
+//  ------------------------------------------------------------------   //
+
+// Export the image to an Earth Engine asset //
+
+Export.image.toAsset({
+  image: linearSDB,
+  description: description,
+  assetId: assetId,
+  scale: 10,
+  maxPixels: 551733655,
+});

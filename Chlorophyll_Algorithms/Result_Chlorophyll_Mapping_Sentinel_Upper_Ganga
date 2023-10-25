@@ -1,0 +1,534 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var S1 = ee.ImageCollection("COPERNICUS/S1_GRD"),
+    S2 = ee.ImageCollection("COPERNICUS/S2"),
+    Ganeshpahar = /* color: #98ff00 */ee.Geometry.Point([78.19434224549194, 28.66307895593106]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+/*var waypoints = [
+    ee.Feature(
+        ee.Geometry.Point([78.44611111, 30.72833333]),
+        {'name': '1: Uttarkashi'}),
+    ee.Feature(
+        ee.Geometry.Point([78.59694444, 30.14138889]), {'name': '1: Deoprayag'}),
+    ee.Feature(
+        ee.Geometry.Point([78.30388889, 30.10083333]),
+        {'name': '3: Rishikesh'}),
+    ee.Feature(
+        ee.Geometry.Point([78.14166667, 28.76666667]), {'name': '2: Garhmukteshwar'}),
+    ee.Feature(
+        ee.Geometry.Point([78.86055556, 27.93194444]), {'name': '3: Kachlabridge'}),
+    ee.Feature(
+        ee.Geometry.Point([79.62500000, 27.40416667]), {'name': '4: Fatehgarh'}),
+    ee.Feature(
+        ee.Geometry.Point([80.03611111, 26.93472222]), {'name': '5: Ankinghat'}),
+    ee.Feature(
+        ee.Geometry.Point([80.37638889, 26.46944444]), {'name': '6: Kanpur'}),
+    ee.Feature(
+        ee.Geometry.Point([80.85416667, 26.04305556]), {'name': '7: Bhitaura'}),
+    ee.Feature(
+        ee.Geometry.Point([81.91638889, 25.39305556]), {'name': '8: Chhatnag Allahabad'}),
+    ee.Feature(
+        ee.Geometry.Point([82.53027778, 25.15611111]), {'name': '9: Mirzapur'}),
+    ee.Feature(
+        ee.Geometry.Point([83.03750000, 25.32361111]), {'name': '10: Varanasi'}),
+    ee.Feature(
+        ee.Geometry.Point([87.93111111, 24.80388889]), {'name': '11: Farakka'})
+  ];
+*/
+
+var waypoints = [
+    ee.Feature(
+        ee.Geometry.Point([78.14649, 28.75065]),
+        {'name': '1: Brijghat'}),
+    ee.Feature(
+        ee.Geometry.Point([78.19422, 28.69479]), {'name': '2: Pooth'}),
+    ee.Feature(
+        ee.Geometry.Point([78.19180278, 28.61096944]),
+        {'name': '3: Bhagwanpur'}),
+    ee.Feature(
+        ee.Geometry.Point([78.29535, 28.42746]), {'name': '4: Mubarikpur'}),
+    ee.Feature(
+        ee.Geometry.Point([78.27955, 28.35474]), {'name': '5: Anoopsahar'}),
+    ee.Feature(
+        ee.Geometry.Point([78.33024, 28.27094]), {'name': '6: Karanwas'}),
+    ee.Feature(
+        ee.Geometry.Point([78.368102, 28.239052]), {'name': '7: Rajghat'}),
+    ee.Feature(
+        ee.Geometry.Point([78.39115, 28.200214]), {'name': '8: Narora'})
+  ];
+
+var mainchannel = ee.FeatureCollection(waypoints);
+//Variables and imports **Enter Imports**
+exports.Result_Chl_Sentinel_UpGang= function(startdateimport,enddateimport){
+  var atmprocess= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Sentinel_Atmospheric_Corrections/Sentinel_Surface_Reflectance_DOS_from_Reflectance_GISAGMAPS_METHOD');
+  var baseplotmap= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Algorithms/Basemap_Add_To_Map');
+  var chlplotmap= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Algorithms/Chlorophyll_Add_To_Map');
+  var thermal= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Thermal_Algorithm/Thermal_Add_To_Map');
+  var startdate= ee.String(startdateimport);//startdate,enddate: Time Period of Study**Enter**
+  var enddate= ee.String(enddateimport);//**Enter**
+  var cloudcover= ee.Number(7);//Maximum Cloud Cover**Enter**
+  //Turbidity imports
+  var Turbidity_Sentinel_Upper_Ganga= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Turbidity_Algorithms/Result_Turbidity_Mapping_Sentinel_Upper_Ganga');
+  //end turbidity imports 
+  
+  //Chlorophyll imports
+  var CI_Sentinel_Upper_Ganga= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Indices/Result_CI_Mapping_Sentinel_Upper_Ganga');
+  //end Chlorophyll imports
+  
+  //Depth imports Lyzenga
+  var Depth_Sentinel_Upper_Ganga_Lyzenga= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Lyzenga_Depth_Algorithm/Result_Depth_Mapping_Sentinel_Upper_Ganga');
+  //end Chlorophyll imports
+  
+  //Depth imports Stumpf
+  var Depth_Sentinel_Upper_Ganga_Stumpf= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Stumpf_Depth_Algorithm/Result_Depth_Mapping_Sentinel_Upper_Ganga');
+  //end Chlorophyll imports
+  
+  //**Enter var i below**
+  var i= ee.Number(0).toInt();//Put the image number required here. As array index start from zero so the first image number will be zero.
+  var SARcount=S1.filterBounds(Ganeshpahar).filterDate(startdate,enddate);
+  var SARVV= S1.filterBounds(Ganeshpahar).filterDate(startdate,enddate).select(0).first();
+  var SARVH= S1.filterBounds(Ganeshpahar).filterDate(startdate,enddate).select(1).first();
+  var count=SARcount.size();
+    //If 0 elements error
+  var errorgen= ee.Number(count);
+  print(errorgen,'Number of microwave images to be processed:');
+  var a= ee.String('No microwave images in the period.');
+  var b= ee.String('Microwave image loaded!');
+  var returnObj = ee.Algorithms.If(errorgen.eq(0), a , b);
+  if (true) {
+      var panelmic= ui.Panel({
+      style: {
+        position: 'top-center',
+        padding: '5px'
+      }
+    });
+    var titlemic= ui.Label({
+      value: returnObj.getInfo(),
+      style: {
+        fontSize: '14px',
+        fontWeight: 'bold',
+        margin: '0px',
+        whiteSpace: 'pre',
+        textAlign: 'center'
+      }
+    });
+    panelmic.add(titlemic);
+    Map.add(panelmic);
+  }
+  //end 0 elements error
+  if (errorgen.getInfo()) {
+  var panelmicinf= ui.Panel({
+    style: {
+      position: 'top-right',
+      padding: '5px'
+    }
+  });
+  var titlemicinf= ui.Label({
+    value: 'Microwave Image Tile Name:\t'+ ee.Image(SARVV).get('system:index').getInfo() +'\nGeometry Imports Coordinates: \t('+ Ganeshpahar.coordinates().get(0).getInfo()+','+Ganeshpahar.coordinates().get(1).getInfo() + ')',
+    style: {
+      fontSize: '14px',
+      fontWeight: 'bold',
+      margin: '0px',
+      whiteSpace: 'pre',
+      textAlign: 'right'
+    }
+  });
+  
+  panelmicinf.add(titlemicinf);
+  Map.add(panelmicinf);
+  
+  Export.image.toDrive({
+  image: SARVV,
+  description: 'SAR VV Image',
+  scale: 10,
+  region: SARVV.geometry(),
+  fileFormat: 'GeoTIFF',
+  maxPixels: 1e9,
+  });
+  
+  Export.image.toDrive({
+  image: SARVH,
+  description: 'SAR VH Image',
+  scale: 10,
+  region: SARVH.geometry(),
+  fileFormat: 'GeoTIFF',
+  maxPixels: 1e9,
+  });
+
+  var SARVVplot= baseplotmap.Add_to_Map(SARVV,3,'SARVV');
+  var SARVHplot= baseplotmap.Add_to_Map(SARVH,3,'SARVH');
+  }
+  var thermalimage = thermal.Landsat_Thermal(Ganeshpahar,startdate,enddate,mainchannel,0);
+  var Reflectance= atmprocess.Sentinel_SR_DOS_GISMAPS(S2,Ganeshpahar,startdate,enddate,cloudcover,1);
+  var chlorophyllcalc= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Algorithms/Chlorophyll_Calculation_Sentinel');
+  var SentinelImageCollectionUsed= S2.filterBounds(Ganeshpahar).filterDate(startdate,enddate).filterMetadata('CLOUDY_PIXEL_PERCENTAGE','less_than',cloudcover);
+  var SentinelImageCollectionUsedList= SentinelImageCollectionUsed.toList(SentinelImageCollectionUsed.size());
+  var panel= ui.Panel({
+    style: {
+      position: 'top-right',
+      padding: '5px'
+    }
+  });
+  var title= ui.Label({
+    value: 'Optical Image Tile Name:\t'+ ee.Image(SentinelImageCollectionUsedList.get(i)).get('GRANULE_ID').getInfo(),
+    style: {
+      fontSize: '14px',
+      fontWeight: 'bold',
+      margin: '0px',
+      whiteSpace: 'pre',
+      textAlign: 'center'
+    }
+  });
+  
+  panel.add(title);
+  var Ha = ee.ImageCollection(chlorophyllcalc.Chlorophyll_Sentinel(Reflectance).get('Ha'));
+  var Page= ee.ImageCollection(chlorophyllcalc.Chlorophyll_Sentinel(Reflectance).get('Page'));
+  var Kuhn= ee.ImageCollection(chlorophyllcalc.Chlorophyll_Sentinel(Reflectance).get('Kuhn'));
+  var ReflectanceList= Reflectance.toList(Reflectance.size());
+  var Halist= Ha.toList(Ha.size());
+  var Pagelist= Page.toList(Page.size());
+  var Kuhnlist= Kuhn.toList(Kuhn.size());
+  
+  print(Ha, 'Ha');
+  print(Page, 'Page');
+  print(Kuhn, 'Kuhn');
+  
+  Export.image.toDrive({
+  image: Ha.first(),
+  description: 'Ha Image',
+  scale: 10,
+  region: Reflectance.geometry(),
+  maxPixels: 1e9
+  });
+  
+  Export.image.toDrive({
+  image: Page.first(),
+  description: 'Page Image',
+  scale: 10,
+  region: Reflectance.geometry(),
+  maxPixels: 1e9
+  });
+  
+  Export.image.toDrive({
+  image: Kuhn.first(),
+  description: 'Kuhn Image',
+  scale: 10,
+  region: Reflectance.geometry(),
+  maxPixels: 1e9
+  });
+  
+  Export.image.toDrive({
+  image: Reflectance.first().select([0,1,2,6]),
+  description: 'Reflectance Image',
+  scale: 10,
+  region: Reflectance.geometry(),
+  maxPixels: 1e9
+  });
+  
+  //Map styling
+  var button1 = ui.Button({
+    style: {
+      position: 'bottom-left',
+      padding: '5px'
+    },
+    label: 'Map Chlorophyll Content: Ha Algorithm',
+    onClick: function() {
+      Map.clear();
+      Map.add(panel);
+      Map.add(panelmicinf);
+      var clipimage= ee.Image(ReflectanceList.get(i));
+      var SARVVplot= baseplotmap.Add_to_Map(SARVV,3,'SARVV');
+      var SARVHplot= baseplotmap.Add_to_Map(SARVH,3,'SARVH');
+      var thermalimage = thermal.Landsat_Thermal(Ganeshpahar,startdate,enddate,mainchannel,1);
+      var clipgeometry= baseplotmap.Add_to_Map(clipimage,3,'Surface Reflectance');//here put i
+      var image= ee.Image(Halist.get(i)).clip(clipgeometry);//here put i
+      var geometry= image.geometry();
+      chlplotmap.Add_to_Map(image, geometry,3,'Ha', mainchannel);
+      //Turbidity
+      Turbidity_Sentinel_Upper_Ganga.Result_Turb_Sentinel_UpGang(startdateimport,enddateimport);
+      //Turbidity end
+      
+      //Chlorophyll
+      CI_Sentinel_Upper_Ganga.Result_CI_Sentinel_UpGang(startdateimport,enddateimport);
+      //Chlorophyll end
+      
+      //Depth Lyzenga
+      Depth_Sentinel_Upper_Ganga_Lyzenga.Result_depth_Sentinel_UpGang(startdateimport,enddateimport);
+      //Depth end
+      
+      //Depth Stumpf
+      Depth_Sentinel_Upper_Ganga_Stumpf.Result_depth_Sentinel_UpGang(startdateimport,enddateimport);
+      //Depth end
+      
+      Map.add(button1);
+      Map.add(button2);
+      Map.add(button3);
+      Map.add(button4);
+      var panel2= ui.Panel({
+      style: {
+        position: 'bottom-center',
+        padding: '5px'
+      }
+    });
+    var title= ui.Label({
+      value: 'Chlorophyll- a (Ha algorithm)',
+      style: {
+        fontSize: '14px',
+        fontWeight: 'bold',
+        margin: '0px',
+        whiteSpace: 'pre',
+        textAlign: 'center'
+      }
+    });
+    panel2.add(title);
+    Map.add(panel2);
+      Map.setControlVisibility({drawingToolsControl: false,
+    mapTypeControl: false
+  });
+    }
+  });
+  var button2 = ui.Button({
+    style: {
+      position: 'bottom-left',
+      padding: '5px'
+    },
+    label: 'Map Chlorophyll Content: Page Algorithm',
+    onClick: function() {
+      Map.clear();
+      Map.add(panel);
+      Map.add(panelmicinf);
+      var clipimage= ee.Image(ReflectanceList.get(i));
+      var SARVVplot= baseplotmap.Add_to_Map(SARVV,3,'SARVV');
+      var SARVHplot= baseplotmap.Add_to_Map(SARVH,3,'SARVH');
+      var thermalimage = thermal.Landsat_Thermal(Ganeshpahar,startdate,enddate,mainchannel,1);
+      var clipgeometry= baseplotmap.Add_to_Map(clipimage,3,'Surface Reflectance');//here put i
+      var image= ee.Image(Pagelist.get(i)).clip(clipgeometry);//here put i
+      var geometry= image.geometry();
+      chlplotmap.Add_to_Map(image, geometry,3,'Page', mainchannel);
+      //Turbidity
+      Turbidity_Sentinel_Upper_Ganga.Result_Turb_Sentinel_UpGang(startdateimport,enddateimport);
+      //Turbidity end
+      
+      //Chlorophyll
+      CI_Sentinel_Upper_Ganga.Result_CI_Sentinel_UpGang(startdateimport,enddateimport);
+      //Chlorophyll end
+      
+      //Depth Lyzenga
+      Depth_Sentinel_Upper_Ganga_Lyzenga.Result_depth_Sentinel_UpGang(startdateimport,enddateimport);
+      //Depth end
+      
+      //Depth Stumpf
+      Depth_Sentinel_Upper_Ganga_Stumpf.Result_depth_Sentinel_UpGang(startdateimport,enddateimport);
+      //Depth end
+      
+      Map.add(button1);
+      Map.add(button2);
+      Map.add(button3);
+      Map.add(button4);
+      var panel2= ui.Panel({
+      style: {
+        position: 'bottom-center',
+        padding: '5px'
+      }
+    });
+    var title= ui.Label({
+      value: 'Chlorophyll- a (Page algorithm)',
+      style: {
+        fontSize: '14px',
+        fontWeight: 'bold',
+        margin: '0px',
+        whiteSpace: 'pre',
+        textAlign: 'center'
+      }
+    });
+    panel2.add(title);
+    Map.add(panel2);
+      Map.setControlVisibility({drawingToolsControl: false,
+    mapTypeControl: false
+  });
+    }
+  });
+  var button3 = ui.Button({
+    style: {
+      position: 'bottom-left',
+      padding: '5px'
+    },
+    label: 'Map Chlorophyll Content: Kuhn Algorithm',
+    onClick: function() {
+      Map.clear();
+      Map.add(panel);
+      Map.add(panelmicinf);
+      var clipimage= ee.Image(ReflectanceList.get(i));
+      var SARVVplot= baseplotmap.Add_to_Map(SARVV,3,'SARVV');
+      var SARVHplot= baseplotmap.Add_to_Map(SARVH,3,'SARVH');
+      var thermalimage = thermal.Landsat_Thermal(Ganeshpahar,startdate,enddate,mainchannel,1);
+      var clipgeometry= baseplotmap.Add_to_Map(clipimage,3,'Surface Reflectance');//here put i
+      var image= ee.Image(Kuhnlist.get(i)).clip(clipgeometry);//here put i
+      var geometry= image.geometry();
+      chlplotmap.Add_to_Map(image, geometry,3,'Kuhn', mainchannel);
+      //Turbidity
+      Turbidity_Sentinel_Upper_Ganga.Result_Turb_Sentinel_UpGang(startdateimport,enddateimport);
+      //Turbidity end
+      
+      //Chlorophyll
+      CI_Sentinel_Upper_Ganga.Result_CI_Sentinel_UpGang(startdateimport,enddateimport);
+      //Chlorophyll end
+      
+      //Depth Lyzenga
+      Depth_Sentinel_Upper_Ganga_Lyzenga.Result_depth_Sentinel_UpGang(startdateimport,enddateimport);
+      //Depth end
+      
+      //Depth Stumpf
+      Depth_Sentinel_Upper_Ganga_Stumpf.Result_depth_Sentinel_UpGang(startdateimport,enddateimport);
+      //Depth end
+      
+      Map.add(button1);
+      Map.add(button2);
+      Map.add(button3);
+      Map.add(button4);
+      var panel2= ui.Panel({
+      style: {
+        position: 'bottom-center',
+        padding: '5px'
+      }
+    });
+    var title= ui.Label({
+      value: 'Chlorophyll- a (Kuhn algorithm)',
+      style: {
+        fontSize: '14px',
+        fontWeight: 'bold',
+        margin: '0px',
+        whiteSpace: 'pre',
+        textAlign: 'center'
+      }
+    });
+    panel2.add(title);
+    Map.add(panel2);
+      Map.setControlVisibility({drawingToolsControl: false,
+    mapTypeControl: false
+  });
+    }
+  });
+  var button4 = ui.Button({
+    style: {
+      position: 'bottom-left',
+      padding: '5px'
+    },
+    label: 'Show All Maps',
+    onClick: function() {
+      Map.clear();
+      Map.add(panel);
+      Map.add(panelmicinf);
+      var clipimage= ee.Image(ReflectanceList.get(i));
+      var SARVVplot= baseplotmap.Add_to_Map(SARVV,3,'SARVV');
+      var SARVHplot= baseplotmap.Add_to_Map(SARVH,3,'SARVH');
+      var thermalimage = thermal.Landsat_Thermal(Ganeshpahar,startdate,enddate,mainchannel,1);
+      var clipgeometry= baseplotmap.Add_to_Map(clipimage,3,'Surface Reflectance');//here put i
+      var image1= ee.Image(Halist.get(i)).clip(clipgeometry);//here put i
+      var geometry1= image1.geometry();
+      chlplotmap.Add_to_Map(image1, geometry1,3,'Ha', mainchannel);
+      var image2= ee.Image(Pagelist.get(i)).clip(clipgeometry);//here put i
+      var geometry2= image2.geometry();
+      chlplotmap.Add_to_Map(image2, geometry2,3,'Page', mainchannel);
+      var image3= ee.Image(Kuhnlist.get(i)).clip(clipgeometry);//here put i
+      var geometry3= image3.geometry();
+      chlplotmap.Add_to_Map(image3, geometry3,3,'Kuhn', mainchannel);
+      //Turbidity
+      Turbidity_Sentinel_Upper_Ganga.Result_Turb_Sentinel_UpGang(startdateimport,enddateimport);
+      //Turbidity end
+      
+      //Chlorophyll
+      CI_Sentinel_Upper_Ganga.Result_CI_Sentinel_UpGang(startdateimport,enddateimport);
+      //Chlorophyll end
+      
+      //Depth Lyzenga
+      Depth_Sentinel_Upper_Ganga_Lyzenga.Result_depth_Sentinel_UpGang(startdateimport,enddateimport);
+      //Depth end
+      
+      //Depth Stumpf
+      Depth_Sentinel_Upper_Ganga_Stumpf.Result_depth_Sentinel_UpGang(startdateimport,enddateimport);
+      //Depth end
+      
+      Map.add(button1);
+      Map.add(button2);
+      Map.add(button3);
+      Map.add(button4);
+    var panel2= ui.Panel({
+      style: {
+        position: 'bottom-center',
+        padding: '5px'
+      }
+    });
+    var title= ui.Label({
+      value: 'Chlorophyll- a for all algorithms',
+      style: {
+        fontSize: '14px',
+        fontWeight: 'bold',
+        margin: '0px',
+        whiteSpace: 'pre',
+        textAlign: 'center'
+      }
+    });
+    panel2.add(title);
+    Map.add(panel2);
+      Map.setControlVisibility({drawingToolsControl: false,
+    mapTypeControl: false
+  });
+    }
+  });
+    var clipimage= ee.Image(ReflectanceList.get(i));
+    var clipgeometry= baseplotmap.Add_to_Map(clipimage,3,'Surface Reflectance');//here put i
+    Map.add(panel);
+    Map.add(button1);
+    Map.add(button2);
+    Map.add(button3);
+    Map.add(button4);
+    var panel2= ui.Panel({
+      style: {
+        position: 'bottom-center',
+        padding: '5px'
+      }
+    });
+    var title2= ui.Label({
+      value: 'Surface reflectance tile',
+      style: {
+        fontSize: '14px',
+        fontWeight: 'bold',
+        margin: '0px',
+        whiteSpace: 'pre',
+        textAlign: 'center'
+      }
+    });
+    panel2.add(title2);
+    Map.add(panel2);
+    Map.setControlVisibility({drawingToolsControl: false,
+    mapTypeControl: false
+  });
+};
+  /*
+  //Coordinates of survey on March 2 2021
+  var point1 = ee.Geometry.Point([92.04111111, 26.24916667]);
+  var point2 = ee.Geometry.Point([92.01277778, 26.27944444]);//No chlorophyll
+  var point3 = ee.Geometry.Point([92.04083333, 26.24888889]);
+  var point4 = ee.Geometry.Point([92.01833333, 26.28861111]);
+  var point5 = ee.Geometry.Point([92.01277778, 26.27944444]);
+  
+  Map.addLayer({
+    eeObject: point1,
+    name: '92.04111111, 26.24916667'
+  });
+  Map.addLayer({
+    eeObject: point2,
+    name: '92.01277778, 26.27944444 (No Chlorophyll)'
+  });
+  Map.addLayer({
+    eeObject: point3,
+    name: '92.04083333, 26.24888889'
+  });
+  Map.addLayer({
+    eeObject: point4,
+    name: '92.01833333, 26.28861111'
+  });
+  Map.addLayer({
+    eeObject: point5,
+    name: '92.01277778, 26.27944444'
+  });*/

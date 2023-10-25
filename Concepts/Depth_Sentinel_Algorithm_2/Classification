@@ -1,0 +1,125 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var POI = 
+    /* color: #98ff00 */
+    /* shown: false */
+    ee.Geometry.Point([-88.17377351586444, 17.616543179341292]),
+    landmask = ee.Image("users/stcarp/CME_MappingWorkshop/CME_workshop_Belize_landmask"),
+    training = ee.FeatureCollection("users/stcarp/CME_MappingWorkshop/CME_Workshop_Training_data_for_Belize"),
+    validation = ee.FeatureCollection("users/stcarp/CME_MappingWorkshop/CME_Workshop_Validation_data_for_Belize"),
+    bathymetry = ee.Image("users/stcarp/CME_MappingWorkshop/CME_workshop_Belize_bathy_lyzgena");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+// Script to classify Sentinel 2 data into Seagrass, Sand, Coral and deep water areas
+
+/* 
+
+Requirements (Imports needed above)
+  'POI'          = Point of interest
+  'landmask'     = Image mask where water = 1, land = 0 - import from Assets [left] (See 'Create_landmask')
+  'training'     = FeatureCollection of training points from each class - import from Assets [left] (See 'Create_TrainingData')
+  'validation'   = FeatureCollection of validation points from each class - import from Assets [left] (See 'Create_TrainingData')
+  'bathymetry'   = Image of satellite derived bathymetry - import from Assets [left] (See 'Estimate_bathymetry_xxx')
+
+Parameters:                                                   Defaults
+  'start_date'            = yyyy-mm-dd                          2020-01-01
+  'end_date'              = yyyy-mm-dd                          2020-12-01
+  'MAX_CLOUD_PROBABILITY' = threshold to mask clouds            8 (8% cloud probability)
+  'numberOfTrees'         = number of decision trees in         300
+                            random forest classifier
+  'visClassParams'    min = minimum cover class number          0
+                      max = maximum cover class number          3
+                  palette = colour codes for each class in      ['2039AC','F329E4','E9FB0E','05841F']
+                            order of cover number               i.e. [Deep-water, Coral, Sand, Seagrass]
+*/
+
+var START_DATE = '2020-01-01';
+var END_DATE = '2020-12-01';
+var MAX_CLOUD_PROBABILITY = 8;
+var numberOfTrees = 300
+
+// Display
+var visClassParams= {min: 0, max: 3,
+                    palette: ['2039AC','F329E4','E9FB0E','05841F']}
+
+//  ------------------------------------------------------------------   //
+
+// Create Sentinel 2 composite //
+
+var s2Sr = ee.ImageCollection('COPERNICUS/S2_SR');
+var s2Clouds = ee.ImageCollection('COPERNICUS/S2_CLOUD_PROBABILITY');
+
+function maskClouds(img) {
+  var clouds = ee.Image(img.get('cloud_mask')).select('probability');
+  var isNotCloud = clouds.lt(MAX_CLOUD_PROBABILITY);
+  return img.updateMask(isNotCloud);
+}
+
+// Filter input collections by desired data range and region.
+var criteria = ee.Filter.and(ee.Filter.bounds(POI), ee.Filter.date(ee.Date(START_DATE), ee.Date(END_DATE)));
+s2Sr = s2Sr.filter(criteria);
+s2Clouds = s2Clouds.filter(criteria);
+
+// Join S2 SR with cloud probability dataset to add cloud mask.
+var s2SrWithCloudMask = ee.Join.saveFirst('cloud_mask').apply({
+  primary: s2Sr,
+  secondary: s2Clouds,
+  condition:
+      ee.Filter.equals({leftField: 'system:index', rightField: 'system:index'})
+});
+
+var s2CloudMasked = ee.ImageCollection(s2SrWithCloudMask).map(maskClouds).median();
+
+//  ------------------------------------------------------------------   //
+
+// Classification //
+
+// Add bathymetry, mask image using landmask data and clip to boundary
+var Belize_masked = s2CloudMasked.addBands(bathymetry).updateMask(landmask).clip(landmask.geometry());
+// Add bathymetry band and rename bands
+var belize_rgbd = Belize_masked.select(
+  ['B2', 'B3', 'B4', 'blue'],
+  ['blue', 'green', 'red', 'depth']);
+
+var bands = ['blue', 'green', 'depth']
+
+// Train classifier with 70% of our data.
+var trainedClassifier = ee.Classifier.smileRandomForest(numberOfTrees).train(training, 'cover', bands);
+// Classify the input imagery.
+var classified = belize_rgbd.select(bands).classify(trainedClassifier, 'classification');
+
+// Extract classification result in validation data
+var val_class = classified.sampleRegions({
+  collection: validation,
+  properties: ['cover'],
+  scale: 10
+});
+
+// Print the confusion matrix.
+var trainMatrix = val_class.errorMatrix('cover', 'classification');
+print('Overall accuracy: ', trainMatrix.accuracy());
+print('Kappa: ', trainMatrix.kappa(),
+      'Confusion Matrix', trainMatrix,
+      'Producer Accuracy: ', trainMatrix.producersAccuracy(),
+      'Consumer Accuracy: ', trainMatrix.consumersAccuracy());
+
+// Display the classification result and the input image.
+Map.centerObject(POI, 12);
+Map.addLayer(belize_rgbd, {min: 0, max: 3000, bands: ['red', 'green', 'blue']}, 'Sentinel 2 2020 composite');
+Map.addLayer(classified, visClassParams, 'Classification');
+
+// Display training data
+Map.addLayer(training.draw({color: '#ff3e12', strokeWidth: 1 }), {}, 'Training Data');
+Map.addLayer(validation.draw({color: '#1430ff', strokeWidth: 1 }), {}, 'Validation Data');
+
+
+Export.image.toDrive({
+  image: Belize_masked,
+  description: 'Belize_' + START_DATE + '_' + END_DATE + ' _classified',
+  scale: 10,
+  fileFormat: 'GeoTIFF',
+  region: landmask.geometry(),
+  folder: 'EarthEngine',
+  maxPixels: 477442748,
+});
+
+
+

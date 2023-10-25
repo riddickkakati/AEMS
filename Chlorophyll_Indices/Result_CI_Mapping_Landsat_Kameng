@@ -1,0 +1,107 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var L8 = ee.ImageCollection("LANDSAT/LC08/C01/T1"),
+    Ganeshpahar = /* color: #98ff00 */ee.Geometry.Point([92.8761, 26.81111]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+var waypoints = [
+    ee.Feature(
+        ee.Geometry.Point([93.039239, 27.356833]),
+        {'name': '1: Seppa'}),
+    ee.Feature(
+        ee.Geometry.Point([92.651241, 27.017082]), {'name': '2: Bhalukpong'}),
+    ee.Feature(
+        ee.Geometry.Point([92.876711, 26.811461]),
+        {'name': '3: Jia Bharali'})
+  ];
+  
+var mainchannel = ee.FeatureCollection(waypoints);
+//Variables and imports **Enter Imports**
+exports.Result_CI_Landsat_Kameng= function(startdateimport,enddateimport){
+  var atmprocess= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Landsat_Atmospheric_Corrections/Landsat_SR_DOS_GISAGMAPS_METHOD');
+  var baseplotmap= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Indices/Basemap_Add_To_Map');
+  var CIplotmap= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Indices/CI_Add_To_Map');
+  var startdate= ee.String(startdateimport);//startdate,enddate: Time Period of Study**Enter**
+  var enddate= ee.String(enddateimport);//**Enter**
+  var cloudcover= ee.Number(7);//Maximum Cloud Cover**Enter**
+  //**Enter var i below**
+  var i= ee.Number(0).toInt();//Put the image number required here. As array index start from zero so the first image number will be zero.
+  var Reflectance= atmprocess.Landsat_SR_DOS_GISMAPS(L8,Ganeshpahar,startdate,enddate,cloudcover,0);
+  var CIcalc= require('users/riddickkakati/GEE:EMIR_ALGORITHM_TESTER/Chlorophyll_Indices/CI_Calculation_Landsat');
+  var LandsatImageCollectionUsed= L8.filterBounds(Ganeshpahar).filterDate(startdate,enddate).filterMetadata('CLOUD_COVER','less_than',cloudcover);
+  var CI = ee.ImageCollection(CIcalc.CI_Landsat(Reflectance).get('Chlorophyllindex'));
+  var ReflectanceList= Reflectance.toList(Reflectance.size());
+  var LandsatImageCollectionUsedList= LandsatImageCollectionUsed.toList(LandsatImageCollectionUsed.size());
+  var CIlist= CI.toList(CI.size());
+  var MNDWImap = ee.ImageCollection(CIcalc.CI_Landsat(Reflectance).get('MNDWIimage'));
+  
+  print(CI, 'Chlorophyll Index');
+  
+  Export.image.toDrive({
+  image: CI.first(),
+  description: 'Chlorophyll Index Image',
+  scale: 10,
+  region: Reflectance.geometry(),
+  maxPixels: 1e9
+  });
+  
+  Export.image.toDrive({
+  image: MNDWImap.first(),
+  description: 'MNDWI Image',
+  scale: 10,
+  region: Reflectance.geometry(),
+  maxPixels: 1e9
+  });
+  
+  //Map styling
+  
+  var panel= ui.Panel({
+    style: {
+      position: 'top-center',
+      padding: '5px'
+    }
+  });
+  var title= ui.Label({
+    value: 'Image Tile Name:\t'+ ee.Image(LandsatImageCollectionUsedList.get(i)).get('BPF_NAME_OLI').getInfo() +'\nGeometry Imports Coordinates: \t('+ Ganeshpahar.coordinates().get(0).getInfo()+','+Ganeshpahar.coordinates().get(1).getInfo()+')',
+    style: {
+      fontSize: '14px',
+      fontWeight: 'bold',
+      margin: '0px',
+      whiteSpace: 'pre',
+      textAlign: 'center'
+    }
+  });
+  panel.add(title);
+  
+    var clipimage= ee.Image(ReflectanceList.get(i));
+    var clipgeometry= baseplotmap.Add_to_Map(clipimage,3,'Surface Reflectance');
+    var image= ee.Image(CIlist.get(i)).clip(clipgeometry);//here put i
+    var geometry= image.geometry();
+    CIplotmap.Add_to_Map(image, geometry,3,'Chlorophyll Index', mainchannel);//here put i
+};
+/*
+  //Coordinates of survey on March 2 2021
+  var point1 = ee.Geometry.Point([92.04111111, 26.24916667]);
+  var point2 = ee.Geometry.Point([92.01277778, 26.27944444]);//No chlorophyll
+  var point3 = ee.Geometry.Point([92.04083333, 26.24888889]);
+  var point4 = ee.Geometry.Point([92.01833333, 26.28861111]);
+  var point5 = ee.Geometry.Point([92.01277778, 26.27944444]);
+  
+  Map.addLayer({
+    eeObject: point1,
+    name: '92.04111111, 26.24916667'
+  });
+  Map.addLayer({
+    eeObject: point2,
+    name: '92.01277778, 26.27944444 (No Chlorophyll)'
+  });
+  Map.addLayer({
+    eeObject: point3,
+    name: '92.04083333, 26.24888889'
+  });
+  Map.addLayer({
+    eeObject: point4,
+    name: '92.01833333, 26.28861111'
+  });
+  Map.addLayer({
+    eeObject: point5,
+    name: '92.01277778, 26.27944444'
+  });*/
